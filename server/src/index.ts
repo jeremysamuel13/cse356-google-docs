@@ -5,9 +5,8 @@ import * as Y from "yjs";
 import SSE from "express-sse-ts";
 import { MongodbPersistence } from "y-mongodb-provider";
 import cors from 'cors';
-import { JSONToU8A, U8AToJSON } from './utils';
+import { toUint8Array, fromUint8Array } from 'js-base64';
 import morgan from 'morgan'
-
 
 // Allow for interaction with dotenv
 dotenv.config();
@@ -17,7 +16,7 @@ const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT } = process.env
 const app: Express = express();
 app.use(cors());
 
-const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authMechanism=DEFAULT`
+const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authSource=admin`
 
 const ymongo = new MongodbPersistence(mongostr, {
     collectionName: COLLECTION
@@ -26,43 +25,44 @@ const ymongo = new MongodbPersistence(mongostr, {
 const clients = {} as Clients
 
 // JSON Middleware
-app.use(express.json())
+app.use(express.json({ limit: '50mb' }))
 
 //logger
-app.use(morgan("combined"))
-
-// Set Header
-app.use((_, res, next) => {
-    res.setHeader("X-CSE356", "63094ca6047a1139b66d985a")
-    next()
-})
-
-const log = console.log
+//app.use(morgan("tiny"))
 
 
 app.get('/connect/:id', async (req: Request, res: Response, next: NextFunction) => {
+
     const { id } = req.params
 
-    log(`Started connection with room: ${id}`)
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+
+    console.log(`Started connection with room: ${id}`)
 
     // find document or create it
     const document: Y.Doc = await ymongo.getYDoc(id)
 
     const sse = new SSE()
+    sse.init(req, res, next)
     if (!clients[id]) {
         clients[id] = new ClientManager()
     }
-    const client = clients[id].addClient(sse)
-    sse.init(req, res, next)
+    const client_id = clients[id].addClient(sse)
     const update = Y.encodeStateAsUpdate(document);
-    const payload = { update: U8AToJSON(update), client_id: client.client_id }
-    client.send(JSON.stringify(payload), EventType.Sync)
+    const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
+    console.log(`${client_id}: Syncing`)
+    clients[id].sendTo(client_id, JSON.stringify(payload), EventType.Sync)
+    req.on("close", () => {
+        clients[id].removeClient(client_id)
+    })
 });
 
 app.post('/op/:id', async (req: Request, res: Response) => {
+    const start = performance.now()
+
     // we expect a json body
     if (!req.is('application/json')) {
-        log("Not json")
+        console.log("Not json")
         return res.sendStatus(400)
     }
 
@@ -71,21 +71,28 @@ app.post('/op/:id', async (req: Request, res: Response) => {
     const document: Y.Doc = await ymongo.getYDoc(id)
 
     const onUpdate = async (update: Uint8Array) => {
-        ymongo.storeUpdate(id, update);
+        await ymongo.storeUpdate(id, update);
     }
 
     document.on('update', onUpdate)
 
     if (body.event === EventType.Update) {
-        const update = JSONToU8A(body.data)
+        console.log(`${body.client_id}: Sent update`)
+        //const state = Y.encodeStateVector(document)
+        const update = toUint8Array(body.data)
         Y.applyUpdate(document, update)
-        const payload = { update: body.data, client_id: body.client_id }
-        clients[id].sendToAll(JSON.stringify(payload), EventType.Update, body.client_id)
+        //const computedUpdate = Y.encodeStateAsUpdate(document, state)
+        const payload = { update: fromUint8Array(update), client_id: body.client_id, event: EventType.Update }
+        console.log(`${body.client_id}: Sending update to others`)
         document.emit('update', [update])
+        await clients[id].sendToAll(JSON.stringify(payload), EventType.Update, body.client_id).then(() => {
+            console.log(`!!!!!!!!!!\nSent text:\n${document.getText().toJSON()}\n!!!!!!!!!!`)
+        })
     }
 
     document.off('update', onUpdate)
-
+    const elapsed = performance.now() - start
+    console.log(`${body.client_id}: OP took ${elapsed}ms`)
     return res.sendStatus(200)
 })
 

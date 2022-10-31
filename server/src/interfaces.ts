@@ -26,9 +26,13 @@ export class Client {
     }
 
     send(data: string, event: EventType, exclude?: string) {
-        if (this.client_id !== exclude) {
-            this.res.send(data, event)
-        }
+        return new Promise<void>((resolve, reject) => {
+            if (this.client_id !== exclude) {
+                this.res.send(data, event)
+                console.log(`${this.client_id}: Data was sent to (exlcuded: ${exclude})`)
+            }
+            return resolve()
+        })
     }
 }
 
@@ -41,11 +45,20 @@ export class ClientManager {
     addClient(res: SSE) {
         const client = new Client(res)
         this.clients.push(client)
-        return client
+        return client.client_id
     }
 
-    sendToAll(data: string, event: EventType, exclude?: string) {
-        this.clients.forEach(c => c.send(data, event, exclude))
+    async sendToAll(data: string, event: EventType, exclude?: string) {
+        await Promise.all(this.clients.map(c => c.send(data, event, exclude)))
+    }
+
+    async sendTo(client_id: string, data: string, event: EventType, exclude?: string) {
+        await this.clients.find(c => c.client_id === client_id)?.send(data, event, exclude)
+    }
+
+    removeClient(client_id: string) {
+        this.clients = this.clients.filter(c => c.client_id !== client_id)
+        console.log(`${client_id}: Disconnected`)
     }
 }
 

@@ -6,6 +6,9 @@ import "react-quill/dist/quill.snow.css";
 import 'react-quill/dist/quill.bubble.css';
 import { QuillBinding } from 'y-quill'
 import axios from 'axios';
+import { fromUint8Array, toUint8Array } from 'js-base64';
+
+
 
 const quillContainerData = [
     ["bold", "italic", "underline", "strike", "blockquote"],
@@ -43,15 +46,14 @@ const Doc = () => {
 
     const [clientID, setClientID] = useState('')
 
-    const quillRef = useRef<ReactQuill>(null)
+    // const quillRef = useRef<ReactQuill>(null)
     const doc = useRef(new Y.Doc())
-    const text = doc.current.getText(id)
 
     const onTextChange = useMemo(() => {
-        return () => {
-            const update = Y.encodeStateAsUpdate(doc.current)
-            const payload = { event: 'update', data: U8AToJSON(update), client_id: clientID }
-            axios.post(`${BASE_URL}/op/${id}`, payload)
+        return async (update: Uint8Array) => {
+            const payload = { event: 'update', data: fromUint8Array(update), client_id: clientID }
+            console.debug(payload)
+            await axios.post(`${BASE_URL}/op/${id}`, payload)
         }
     }, [clientID, id])
 
@@ -60,15 +62,6 @@ const Doc = () => {
         fn()
         doc.current.on('update', onTextChange)
     }
-
-    useEffect(() => {
-        if (quillRef.current) {
-            const binding = new QuillBinding(doc.current.getText(id), quillRef.current?.editor)
-            return () => {
-                binding.destroy()
-            }
-        }
-    }, [quillRef])
 
     useEffect(() => {
         doc.current.on('update', onTextChange)
@@ -81,17 +74,23 @@ const Doc = () => {
         const eventSource = new EventSource(`${BASE_URL}/connect/${id}`)
 
         const handleSync = (event: MessageEvent<any>) => {
+            console.debug(event)
             const data = JSON.parse(event.data)
-            const update = JSONToU8A(data.update)
+            const update = toUint8Array(data.update)
             setClientID(data.client_id)
-            withoutObservation(() => Y.applyUpdate(doc.current, update))
+            withoutObservation(() => {
+                const text = doc.current.getText()
+                text.delete(0, text.length)
+                Y.applyUpdate(doc.current, update)
+            })
         }
 
         const handleUpdate = (event: MessageEvent<any>) => {
+            console.debug(event)
             const data = JSON.parse(event.data)
             if (data.client_id !== clientID) {
                 withoutObservation(() => {
-                    const update = JSONToU8A(data.update)
+                    const update = toUint8Array(data.update)
                     Y.applyUpdate(doc.current, update)
                 })
             }
@@ -108,6 +107,12 @@ const Doc = () => {
     }, [id])
 
 
+    if (!clientID) {
+        return <>
+            Loading...
+        </>
+    }
+
     return (
         <>
             <div>{`Client ID: ${clientID}`}</div>
@@ -120,21 +125,15 @@ const Doc = () => {
                 }}
                 formats={quillFormats}
                 preserveWhitespace={true}
-                ref={quillRef}
-                onChange={(val, delta) => doc.current.getText(id).applyDelta(delta)}
+                ref={ref => {
+                    if (ref) {
+                        new QuillBinding(doc.current.getText(), ref.getEditor())
+                    }
+                }}
             />
         </>
     )
 }
-
-export function U8AToJSON(buf: Uint8Array) {
-    return JSON.stringify(Array.from(buf))
-}
-
-export function JSONToU8A(buf: string) {
-    return Uint8Array.from(JSON.parse(buf))
-}
-
 
 
 export default Doc
