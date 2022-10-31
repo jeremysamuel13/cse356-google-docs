@@ -17,8 +17,7 @@ const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT } = process.env
 const app: Express = express();
 app.use(cors());
 
-// console.log(`mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authMechanism=DEFAULT`)
-const mongostr = "mongodb://127.0.0.1:27017/docs"
+const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authMechanism=DEFAULT`
 
 const ymongo = new MongodbPersistence(mongostr, {
     collectionName: COLLECTION
