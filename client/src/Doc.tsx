@@ -35,7 +35,7 @@ const quillFormats = [
 ];
 
 
-const BASE_URL = "http://localhost:8000"
+const BASE_URL = "/api"
 
 
 const Doc = () => {
