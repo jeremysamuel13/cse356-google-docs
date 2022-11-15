@@ -3,12 +3,26 @@ import { ymongo } from '../index'
 import * as Y from "yjs";
 import { v4 as uuidv4 } from 'uuid'
 import { authMiddleware } from './users';
+import mongoose from 'mongoose'
 
 const router = Router()
 
 export const doesDocumentExist = async (ymongo, document) => {
     const documents: Array<string> = await ymongo.getAllDocNames()
-    return documents.filter((val) => val === document).length > 0
+    const doc = documents.find((val) => val === document)
+    return !!doc
+}
+
+export const doesDocumentNameExist = async (ymongo, name) => {
+    const documents: Array<string> = await ymongo.getAllDocNames()
+    for (let e of documents) {
+        const metaVal = await ymongo.getMeta(e, 'name')
+        if (metaVal === name) {
+            return true
+        }
+    }
+
+    return false
 }
 
 
@@ -23,11 +37,11 @@ export const create = async (req: Request<CreateRequestPayload>, res: Response) 
         return res.json({ error: true, message: "Missing name" })
     }
 
-    const id = uuidv4()
-
-    if (await doesDocumentExist(ymongo, id)) {
+    if (await doesDocumentNameExist(ymongo, name)) {
         return res.json({ error: true, message: "Document already exists" })
     }
+
+    const id = uuidv4()
 
     const doc = await ymongo.getYDoc(id)
     await ymongo.setMeta(id, 'name', name)
@@ -47,11 +61,10 @@ export const deleteCollection = async (req: Request<DeleteRequestPayload>, res: 
         return res.json({ error: true, message: "Missing id" })
     }
 
-    if (await doesDocumentExist(ymongo, id)) {
+    if (!(await doesDocumentExist(ymongo, id))) {
         return res.json({ error: true, message: "Document doesn't exists" })
     }
 
-    const doc = await ymongo.getYDoc(id)
     await ymongo.delMeta(id, 'name')
     await ymongo.clearDocument(id);
 
@@ -66,9 +79,11 @@ interface ListElement {
 type ListResponsePayload = ListElement[]
 
 export const list = async (req: Request, res: Response<ListResponsePayload>) => {
-    const documents: Array<string> = await ymongo.getAllDocNames()
-    const data = await Promise.all(documents.map(async doc => ({ id: doc, name: await ymongo.getMeta(doc, 'name') as string })))
-    res.json(data);
+    const { db } = mongoose.connection
+    const agg = await db.collection("docs").aggregate([{ $group: { _id: "$docName", date: { $max: { $toDate: "$_id" } } } }, { $sort: { date: -1 } }, { $limit: 10 }]).toArray()
+    const top10 = await Promise.all(agg.map(async doc => ({ id: doc._id, lastModified: doc.date, name: await ymongo.getMeta(doc._id, 'name') })))
+
+    return res.json(top10)
 }
 
 router.use(authMiddleware)

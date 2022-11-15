@@ -117,10 +117,6 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     const { account } = req.session as any;
     const { email, password } = JSON.parse(account);
 
-    console.log(req.session)
-
-    console.log({ email, password })
-
     if (!email || !password) {
         return res.json({ error: true, message: "Email/password not supplied" });
     }
@@ -140,10 +136,6 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 export const status = async (req: Request, res: Response) => {
     const { account } = req.session as any;
     const { email, password } = JSON.parse(account);
-
-    console.log(req.session)
-
-    console.log({ email, password })
 
     if (!email || !password) {
         return res.json({ error: true, message: "Email/password not supplied" });
