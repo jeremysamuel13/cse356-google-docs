@@ -1,100 +1,74 @@
-import express, { Express, Request, Response, NextFunction } from 'express';
-import { EventType, Clients, Event, ClientManager } from './interfaces'
+import express, { Express } from 'express';
+import { Clients } from './interfaces'
 import dotenv from 'dotenv';
-import * as Y from "yjs";
-import SSE from "express-sse-ts";
 import { MongodbPersistence } from "y-mongodb-provider";
 import cors from 'cors';
-import { toUint8Array, fromUint8Array } from 'js-base64';
 import morgan from 'morgan'
+import session from 'cookie-session'
+import Keygrip from 'keygrip'
+import fileUpload from 'express-fileupload'
+import { v4 as uuidv4 } from 'uuid'
+import { connect as mongoConnect } from 'mongoose'
+
+import { authMiddleware, login, logout, signup, verify, status } from './routes/auth'
+import { create, deleteCollection, list } from './routes/collections'
+import { upload, access } from './routes/media'
+import { connect, op, presence } from './routes/api'
 
 // Allow for interaction with dotenv
 dotenv.config();
 
-const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT } = process.env;
+const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SESSION_KEYS } = process.env;
 
 const app: Express = express();
-app.use(cors());
+app.use(cors({
+    credentials: true
+}));
 
 const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authSource=admin`
 
-const ymongo = new MongodbPersistence(mongostr, {
+export const ymongo = new MongodbPersistence(mongostr, {
     collectionName: COLLECTION
 });
 
-const clients = {} as Clients
+export const clients = {} as Clients
 
 // JSON Middleware
 app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ extended: true }));
+app.use(cors())
+
+app.use(session({
+    name: '356-session',
+    keys: new Keygrip(JSON.parse(SESSION_KEYS ?? "[]"), 'SHA384', 'base64'),
+    resave: false,
+    saveUninitialized: false
+} as any))
 
 //logger
-//app.use(morgan("tiny"))
+app.use(morgan("tiny"))
 
+app.post('/users/signup', signup)
+app.post('/users/login', login)
+app.post('/users/logout', logout)
+app.get('/users/verify', verify)
+app.get('/status', status)
 
-app.get('/connect/:id', async (req: Request, res: Response, next: NextFunction) => {
+//requires a login
+app.use(authMiddleware)
 
-    const { id } = req.params
+app.post('/collection/create', create)
+app.post('/collection/delete', deleteCollection)
+app.get('/collection/list', list)
 
-    res.setHeader("Cache-Control", "no-cache, no-transform");
+app.post('/media/upload', fileUpload({}), upload)
+app.get('/media/access/:mediaid', access)
 
-    console.log(`Started connection with room: ${id}`)
+app.get('/api/connect/:id', connect);
+app.post('/api/op/:id', op)
+app.post('/api/presence/:id', presence)
 
-    // find document or create it
-    const document: Y.Doc = await ymongo.getYDoc(id)
-
-    const sse = new SSE()
-    sse.init(req, res, next)
-    if (!clients[id]) {
-        clients[id] = new ClientManager()
-    }
-    const client_id = clients[id].addClient(sse)
-    const update = Y.encodeStateAsUpdate(document);
-    const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
-    console.log(`${client_id}: Syncing`)
-    clients[id].sendTo(client_id, JSON.stringify(payload), EventType.Sync)
-    req.on("close", () => {
-        clients[id].removeClient(client_id)
-    })
-});
-
-app.post('/op/:id', async (req: Request, res: Response) => {
-    const start = performance.now()
-
-    // we expect a json body
-    if (!req.is('application/json')) {
-        console.log("Not json")
-        return res.sendStatus(400)
-    }
-
-    const { id } = req.params
-    const body: Event = req.body
-    const document: Y.Doc = await ymongo.getYDoc(id)
-
-    const onUpdate = async (update: Uint8Array) => {
-        await ymongo.storeUpdate(id, update);
-    }
-
-    document.on('update', onUpdate)
-
-    if (body.event === EventType.Update) {
-        console.log(`${body.client_id}: Sent update`)
-        //const state = Y.encodeStateVector(document)
-        const update = toUint8Array(body.data)
-        Y.applyUpdate(document, update)
-        //const computedUpdate = Y.encodeStateAsUpdate(document, state)
-        const payload = { update: fromUint8Array(update), client_id: body.client_id, event: EventType.Update }
-        console.log(`${body.client_id}: Sending update to others`)
-        document.emit('update', [update])
-        await clients[id].sendToAll(JSON.stringify(payload), EventType.Update, body.client_id).then(() => {
-            console.log(`!!!!!!!!!!\nSent text:\n${document.getText().toJSON()}\n!!!!!!!!!!`)
-        })
-    }
-
-    document.off('update', onUpdate)
-    const elapsed = performance.now() - start
-    console.log(`${body.client_id}: OP took ${elapsed}ms`)
-    return res.sendStatus(200)
-})
+mongoConnect(mongostr, (val) => console.log(val ?? "connected to docs db"));
 
 app.listen(PORT, async () => {
     console.log(`⚡️[server]: Server is running at http://localhost:${PORT}`);

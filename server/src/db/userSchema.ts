@@ -1,19 +1,23 @@
 import { Schema, model, ObjectId } from 'mongoose';
 
-export interface Account {
+export interface IAccount {
     username: string,
-    password: string,
+    email: string,
     password: string,
     isVerified: boolean,
-    verificationKey?: string,
-    docs: Array<ObjectId>
+    verificationKey?: string
 }
 
-const accountSchema = new Schema<Account>({
+export const accountSchema = new Schema<IAccount>({
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     isVerified: { type: Boolean, required: true, default: false },
     verificationKey: { type: String, required: verificationKeyIsRequired },
-    docs: { type: [{ type: Schema.Types.ObjectId, ref: 'Doc' }] }
 });
+
+function verificationKeyIsRequired(this: IAccount) {
+    return !this.isVerified
+}
+
+export const Account = model<IAccount>('Account', accountSchema)

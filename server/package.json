@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
@@ -20,9 +21,13 @@
     "js-base64": "^3.7.2",
     "mongoose": "^6.7.0",
     "morgan": "^1.10.0",
+    "nodemailer": "^6.8.0",
     "uuid": "^9.0.0",
     "y-mongodb-provider": "^0.1.4",
-    "yjs": "^13.5.42"
+    "yjs": "^13.5.42",
+    "cookie-session": "^2.0.0",
+    "express-fileupload": "^1.4.0",
+    "keygrip": "^1.1.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.12",
@@ -33,6 +38,8 @@
     "@types/uuid": "^8.3.4",
     "concurrently": "^7.5.0",
     "nodemon": "^2.0.20",
-    "typescript": "^4.8.4"
+    "typescript": "^4.8.4",
+    "@types/cookie-session": "^2.0.44",
+    "@types/express-fileupload": "^1.4.1"
   }
 }

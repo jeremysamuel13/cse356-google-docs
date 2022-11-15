@@ -1,10 +1,23 @@
-import React, { useState } from 'react'
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from 'react'
+import { Link, useNavigate } from "react-router-dom";
+import { useCookies } from 'react-cookie'
+import axios from 'axios';
 
 
 const Home = () => {
   const navigate = useNavigate()
   const [id, setID] = useState('')
+  const [documents, setDocuments] = useState<any[]>([])
+
+  useEffect(() => {
+    axios.get('/collection/list').then(data => {
+      if (data.data.error) {
+        navigate("/login")
+      } else {
+        setDocuments(data.data)
+      }
+    });
+  }, [])
 
   return (
     <div>
@@ -17,6 +30,10 @@ const Home = () => {
           navigate(`/doc/${id.trim()}`)
         }
       }}>Go to room</button>
+
+      {
+        documents.map(doc => <Link to={`/doc/${doc.id}`}></Link>)
+      }
     </div>
   )
 }

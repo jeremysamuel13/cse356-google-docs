@@ -2,7 +2,8 @@ import SSE from "express-sse-ts";
 import { v4 as uuidv4 } from 'uuid'
 export enum EventType {
     Sync = "sync",
-    Update = "update"
+    Update = "update",
+    Presence = "presence"
 }
 
 export interface Clients {
@@ -20,8 +21,8 @@ export class Client {
     client_id: string;
     res: SSE;
 
-    constructor(res: SSE) {
-        this.client_id = uuidv4()
+    constructor(res: SSE, client_id) {
+        this.client_id = client_id
         this.res = res
     }
 
@@ -42,10 +43,9 @@ export class ClientManager {
         this.clients = []
     }
 
-    addClient(res: SSE) {
-        const client = new Client(res)
-        this.clients.push(client)
-        return client.client_id
+    addClient(res: SSE, client_id) {
+        this.clients.push(new Client(res, client_id))
+        return client_id
     }
 
     async sendToAll(data: string, event: EventType, exclude?: string) {
@@ -56,9 +56,12 @@ export class ClientManager {
         await this.clients.find(c => c.client_id === client_id)?.send(data, event, exclude)
     }
 
-    removeClient(client_id: string) {
+    removeClient(client_id: string, f: any) {
         this.clients = this.clients.filter(c => c.client_id !== client_id)
         console.log(`${client_id}: Disconnected`)
+        if (f) {
+            f()
+        }
     }
 }
 
