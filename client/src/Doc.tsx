@@ -8,7 +8,7 @@ import { QuillBinding } from 'y-quill'
 import axios from 'axios';
 import { fromUint8Array, toUint8Array } from 'js-base64';
 
-
+axios.defaults.withCredentials = true
 
 const quillContainerData = [
     ["bold", "italic", "underline", "strike", "blockquote"],

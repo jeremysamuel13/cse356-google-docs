@@ -1,12 +1,10 @@
-import { NextFunction, Request, RequestHandler, Response } from 'express'
+import { NextFunction, Request, Router, Response } from 'express'
 import { Account, IAccount } from '../db/userSchema'
 import { v4 as uuidv4 } from 'uuid'
 import { putUser } from '../db/userManagement'
 import { createTransport } from 'nodemailer'
-import { Types } from 'mongoose'
-import { Document } from 'mongoose'
 
-const AccountCookie = 'account'
+const router = Router()
 
 interface SignUpPayload {
     email: string, username: string, password: string
@@ -99,6 +97,7 @@ export const login = async (req: Request<LoginPayload>, res: Response) => {
 
     if (req.session) {
         req.session.account = JSON.stringify({ email, password })
+        req.session.id = uuidv4()
         return res.json({ error: false })
     } else {
         return res.json({ error: true, message: "Session not found" })
@@ -114,21 +113,7 @@ export const logout = async (req: Request, res: Response) => {
     return res.json({ error: false, message: "Session not found" });
 }
 
-
-type AccountType = (Document<unknown, any, IAccount> & IAccount & {
-    _id: Types.ObjectId;
-}) | null
-
-export interface MiddlewareRequest {
-    account: AccountType
-}
-
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-    //skip all auth stuff
-    if (req.originalUrl.startsWith('/users')) {
-        next()
-    }
-
     const { account } = req.session as any;
     const { email, password } = JSON.parse(account);
 
@@ -151,21 +136,32 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     next()
 }
 
+//for debugging
 export const status = async (req: Request, res: Response) => {
     const { account } = req.session as any;
-    const { username, password } = JSON.parse(account);
+    const { email, password } = JSON.parse(account);
 
-    if (!username || !password) {
-        return res.json({ error: true, message: "Username/password not supplied" });
+    console.log(req.session)
+
+    console.log({ email, password })
+
+    if (!email || !password) {
+        return res.json({ error: true, message: "Email/password not supplied" });
     }
 
-    const acc = await Account.findOne({ username: username, password: password });
+    const acc = await Account.findOne({ email: email, password: password });
     if (!acc) {
         console.log("User not found")
         return res.json({ error: true, message: "User not found" });
     }
 
-    res.json({ error: false })
+    return res.json({ error: false })
 }
 
+router.post('/signup', signup)
+router.post('/login', login)
+router.post('/logout', logout)
+router.get('/verify', verify)
+router.get('/status', status)
 
+export default router;

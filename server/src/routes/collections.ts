@@ -1,12 +1,14 @@
-import { Request, Response } from 'express'
+import { Request, Response, Router } from 'express'
 import { ymongo } from '../index'
 import * as Y from "yjs";
 import { v4 as uuidv4 } from 'uuid'
+import { authMiddleware } from './users';
 
+const router = Router()
 
 export const doesDocumentExist = async (ymongo, document) => {
     const documents: Array<string> = await ymongo.getAllDocNames()
-    return documents.filter((val) => ymongo.getMeta(val, 'name') === document).length > 0
+    return documents.filter((val) => val === document).length > 0
 }
 
 
@@ -68,3 +70,10 @@ export const list = async (req: Request, res: Response<ListResponsePayload>) => 
     const data = await Promise.all(documents.map(async doc => ({ id: doc, name: await ymongo.getMeta(doc, 'name') as string })))
     res.json(data);
 }
+
+router.use(authMiddleware)
+router.post('/create', create)
+router.post('/delete', deleteCollection)
+router.get('/list', list)
+
+export default router;

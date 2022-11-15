@@ -1,15 +1,18 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, Router } from 'express';
 import { clients, ymongo } from '../index'
 import SSE from "express-sse-ts";
 import { EventType, ClientManager, Event } from '../interfaces'
 import * as Y from "yjs";
 import { toUint8Array, fromUint8Array } from 'js-base64';
 import { doesDocumentExist } from './collections';
+import { authMiddleware } from './users';
+
+const router = Router()
 
 export const connect = async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params
 
-    if (!await doesDocumentExist(ymongo, id)) {
+    if (!(await doesDocumentExist(ymongo, id))) {
         return res.json({ error: true, message: "Document does not exist" })
     }
 
@@ -27,7 +30,8 @@ export const connect = async (req: Request, res: Response, next: NextFunction) =
     }
 
     const client_id = req.session?.id
-    clients[id].addClient(sse, client_id)
+
+    clients[id].addClient(sse, client_id, res.locals.account)
     const update = Y.encodeStateAsUpdate(document);
     const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
     console.log(`${client_id}: Syncing`)
@@ -45,7 +49,7 @@ export const op = async (req: Request<Event>, res: Response) => {
     // we expect a json body
     if (!req.is('application/json')) {
         console.log("Not json")
-        return res.sendStatus(400)
+        return res.json({ error: true, message: "Not json" })
     }
 
     const { id } = req.params as any
@@ -75,37 +79,34 @@ export const op = async (req: Request<Event>, res: Response) => {
     document.off('update', onUpdate)
     const elapsed = performance.now() - start
     console.log(`${body.client_id}: OP took ${elapsed}ms`)
-    return res.sendStatus(200)
+    return res.json({ error: false })
 }
 
 export const presence = async (req: Request, res: Response) => {
     if (!req.is('application/json')) {
         console.log("Not json")
-        return res.sendStatus(400)
+        return res.json({ error: true, message: "Not json" })
     }
 
     const { id } = req.params as any
     const { index, length } = req.body;
-    const { account } = req as any
 
     const client_id = req.session?.id;
 
+    const client = clients[id].getClient(client_id)
+    client?.setCursor(index, length)
+    await clients[id].emitPresence(client_id)
+
     console.log(`${client_id}: Sent presence`)
 
-    const payload = {
-        session_id: client_id,
-        name: account.username,
-        cursor: {
-            index,
-            length
-        }
-
-    }
-
-    await clients[id].sendToAll(JSON.stringify(payload), EventType.Presence, client_id).then(() => {
-        console.log(`!!!!!!!!!!\nSent presence:\n${{ index, length }}\n!!!!!!!!!!`)
-    })
-
-    return res.sendStatus(200)
+    return res.json({ error: false })
 
 }
+
+router.use(authMiddleware)
+router.get('/connect/:id', connect);
+router.post('/op/:id', op)
+router.post('/presence/:id', presence)
+
+
+export default router;
