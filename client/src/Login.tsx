@@ -13,6 +13,10 @@ const Login = () => {
     return (
         //Login
         <div>
+            <div>
+                Example User : {"miteray729@lidely.com"}
+                Example Pass : {"aNtdkUpyFx9JMBpZhl0T"}
+            </div>
             Email: <input type={"text"} value={email} onChange={(e) => setEmail(e.target.value.replace(/\s/g, ''))}></input>
             Password: <input type={"text"} value={password} onChange={(e) => setPassword(e.target.value.replace(/\s/g, ''))}></input>
             <button onClick={() => {

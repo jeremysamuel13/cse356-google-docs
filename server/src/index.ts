@@ -1,11 +1,12 @@
 import express, { Express } from 'express';
-import { Clients } from './interfaces'
 import dotenv from 'dotenv';
 import { MongodbPersistence } from "y-mongodb-provider";
 import cors from 'cors';
 import morgan from 'morgan'
-import session from 'cookie-session'
+import session from 'express-session'
+
 import { connect as mongoConnect } from 'mongoose'
+import MongoStore from 'connect-mongo'
 
 import users from './routes/users'
 import collection from './routes/collections'
@@ -18,28 +19,34 @@ dotenv.config();
 const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY } = process.env;
 
 const app: Express = express();
+app.set('trust proxy', 1)
 app.use(cors({
     credentials: true
 }));
 
 const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authSource=admin`
 
+console.log(mongostr)
+
 export const ymongo = new MongodbPersistence(mongostr, {
     collectionName: COLLECTION
 });
-
-export const clients = {} as Clients
-
 // JSON Middleware
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true }));
 app.use(cors())
 
 app.use(session({
-    name: '356-session',
-    resave: false,
-    saveUninitialized: false,
-    secret: SECRET_KEY
+    name: 'mahirjeremy-connect.sid',
+    resave: true,
+    saveUninitialized: true,
+    secret: SECRET_KEY,
+    httpOnly: false,
+    store: MongoStore.create({ mongoUrl: mongostr }),
+    proxy: true,
+    cookie: {
+        domain: "mahirjeremy.cse356.compas.cs.stonybrook.edu"
+    }
 } as any))
 
 //logger

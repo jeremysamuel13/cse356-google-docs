@@ -1,7 +1,7 @@
 import { Account } from "./userSchema"
 
-export const getUserFromUsername = async (username: string) => {
-    return await Account.findOne({ username })
+export const getUserFromname = async (name: string) => {
+    return await Account.findOne({ name })
 }
 
 export const getUserFromEmail = async (email: string) => {
@@ -11,9 +11,9 @@ export const getUserFromEmail = async (email: string) => {
 //get Doc or Docs function here perhaps?
 //--------------------------------------
 
-export const putUser = async (username, email, password, key) => {
+export const putUser = async (name, email, password, key) => {
     const res = await Account.create({
-        username,
+        name,
         email,
         password,
         verificationKey: key

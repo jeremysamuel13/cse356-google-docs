@@ -18,11 +18,11 @@ export const doesDocumentNameExist = async (ymongo, name) => {
     for (let e of documents) {
         const metaVal = await ymongo.getMeta(e, 'name')
         if (metaVal === name) {
-            return true
+            return { exists: true, id: e }
         }
     }
 
-    return false
+    return { exists: false }
 }
 
 
@@ -37,8 +37,9 @@ export const create = async (req: Request<CreateRequestPayload>, res: Response) 
         return res.json({ error: true, message: "Missing name" })
     }
 
-    if (await doesDocumentNameExist(ymongo, name)) {
-        return res.json({ error: true, message: "Document already exists" })
+    const { exists, id: existingID } = await doesDocumentNameExist(ymongo, name)
+    if (exists) {
+        return res.json({ error: true, message: "Document already exists", id: existingID })
     }
 
     const id = uuidv4()

@@ -19,13 +19,13 @@ const BASE_URL = "/collection"
 
 const DocElement = ({ document: { id, name }, onDiscard }: Props) => {
     const handleDelete = async () => {
-        await axios.post(`${BASE_URL}/delete`, { name })
+        await axios.post(`${BASE_URL}/delete`, { id })
         onDiscard()
     }
 
     return (
         <div>
-            <Link to={`/doc/${id}`}>{name}</Link>
+            <Link to={`/edit/${id}`}>{name}</Link>
             <button onClick={handleDelete}>X</button>
         </div>
     )

@@ -6,14 +6,16 @@
   "scripts": {
     "build:crdt": "cd crdt && npm run build && cd ..",
     "build:client": "cd client && npm run build && cd ..",
-    "clear-mongo": "mongosh \"mongodb://mongoadmin:cse356@127.0.0.1:27888/docs?authSource=admin\" clearMongo.js",
+    "clear-mongo": "mongosh \"mongodb://admin:cse356@127.0.0.1:27017/docs?authSource=admin\" clearMongo.js",
     "restart:server": "cd server && pm2 stop all && pm2 delete all && pm2 start 'ts-node ./src/index.ts' && cd ..",
-    "deploy": "npm run build:crdt && npm run build:client && npm run clear-mongo && npm run restart:server"
+    "deploy": "npm run build:crdt && npm run build:client && npm run clear-mongo && npm run restart:server",
+    "deploy:server": "npm run clear-mongo && npm run restart:server && pm2 flush all"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jeremysamuel13/cse356-google-docs.git"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {}
 }

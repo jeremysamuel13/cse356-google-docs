@@ -1,7 +1,7 @@
 import { Schema, model, ObjectId } from 'mongoose';
 
 export interface IAccount {
-    username: string,
+    name: string,
     email: string,
     password: string,
     isVerified: boolean,
@@ -9,7 +9,7 @@ export interface IAccount {
 }
 
 export const accountSchema = new Schema<IAccount>({
-    username: { type: String, required: true, unique: true },
+    name: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     isVerified: { type: Boolean, required: true, default: false },

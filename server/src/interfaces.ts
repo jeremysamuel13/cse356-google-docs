@@ -29,12 +29,14 @@ type AccountType = (Document<unknown, any, IAccount> & IAccount & {
 })
 export class Client {
     client_id: string;
+    session_id: string;
     res: SSE;
     cursor: Cursor;
     account: AccountType;
 
-    constructor(res: SSE, client_id, account) {
+    constructor(res: SSE, client_id, session_id, account) {
         this.client_id = client_id
+        this.session_id = session_id
         this.res = res
         this.cursor = {}
         this.account = account;
@@ -53,52 +55,74 @@ export class Client {
     setCursor(index: number, length: number) {
         this.cursor = { index, length }
     }
-
-    clearCursor() {
-        this.cursor = {}
-    }
 }
 
 export class ClientManager {
-    clients: Array<Client>
+    clients: Map<string, Client>
     constructor() {
-        this.clients = []
+        this.clients = new Map()
     }
 
-    addClient(res: SSE, client_id, account) {
-        this.clients.push(new Client(res, client_id, account))
+    //add client to manager
+    addClient(res: SSE, client_id, session_id, account) {
+        this.clients.set(client_id, new Client(res, client_id, session_id, account))
         return client_id
     }
 
+    //send to all clients
     async sendToAll(data: string, event: EventType, exclude?: string) {
-        await Promise.all(this.clients.map(c => c.send(data, event, exclude)))
+        await Promise.all(Array.from(this.clients.values()).map((c: Client) => c.send(data, event, exclude)))
     }
 
+    //send to one client
     async sendTo(client_id: string, data: string, event: EventType, exclude?: string) {
-        await this.clients.find(c => c.client_id === client_id)?.send(data, event, exclude)
+        await this.getClient(client_id)?.send(data, event, exclude)
     }
 
-    removeClient(client_id: string, f: any) {
-        this.clients = this.clients.filter(c => c.client_id !== client_id)
+    //remove client
+    removeClient(client_id: string, f?: any) {
+        this.clients.delete(client_id)
         console.log(`${client_id}: Disconnected`)
         if (f) {
             f()
         }
     }
 
+    //get all cursors
     getCursors() {
-        return this.clients.map(c => ({ session_id: c.client_id, name: c.account?.username, cursor: c.cursor }))
+        return Array.from(this.clients.values()).map(c => ({ session_id: c.client_id, name: c.account?.name, cursor: c.cursor }))
     }
 
+    //get client by client_id
     getClient(client_id: string) {
-        return this.clients.find(c => c.client_id === client_id)
+        return this.clients.get(client_id)
     }
 
-    async emitPresence(client_id) {
-        const c = this.getClient(client_id) as Client
-        const payload = { session_id: c.client_id, name: c.account?.username, cursor: c.cursor }
-        await this.sendToAll(JSON.stringify(payload), EventType.Presence, client_id)
+    //get clients by session_id
+    getClientsBySession(session_id: string) {
+        return Array.from(this.clients.values()).filter(c => c.session_id === session_id)
+    }
+
+    //emit presence to all other clients
+    async emitPresence(c: Client) {
+        console.log(c)
+        console.log(c.session_id)
+        const payload = { session_id: c.session_id, client_id: c.client_id, name: c.account?.name, cursor: c.cursor }
+        await this.sendToAll(JSON.stringify(payload), EventType.Presence, c.client_id)
         console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
+    }
+
+    //send presence to client
+    async sendPresence(c: Client, to: string) {
+        console.log(c)
+        console.log(c.session_id)
+        const payload = { session_id: c.session_id, name: c.account?.name, cursor: c.cursor }
+        await this.sendTo(to, JSON.stringify(payload), EventType.Presence, c.client_id)
+        console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
+    }
+
+    async receivePresence(client_id: string) {
+        await Promise.all(this.getCursors().map(async (cursor) => await this.sendTo(client_id, JSON.stringify(cursor), EventType.Presence)))
     }
 }
 

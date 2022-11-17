@@ -1,5 +1,5 @@
 import { NextFunction, Request, Router, Response } from 'express'
-import { Account, IAccount } from '../db/userSchema'
+import { Account } from '../db/userSchema'
 import { v4 as uuidv4 } from 'uuid'
 import { putUser } from '../db/userManagement'
 import { createTransport } from 'nodemailer'
@@ -7,19 +7,23 @@ import { createTransport } from 'nodemailer'
 const router = Router()
 
 interface SignUpPayload {
-    email: string, username: string, password: string
+    email: string, name: string, password: string
+}
+
+declare module 'express-session' {
+    interface SessionData {
+        account: any;
+    }
 }
 
 export const signup = async (req: Request<SignUpPayload>, res: Response) => {
-    const { email, username, password } = req.body
+    const { email, name, password } = req.body
 
-    console.log(req.body)
-
-    if (!email || !username || !password) {
-        return res.json({ error: true, message: "Username/email/password not found" })
+    if (!email || !name || !password) {
+        return res.json({ error: true, message: "name/email/password not found" })
     }
 
-    const dups = await Account.find({ $or: [{ email }, { username }] })
+    const dups = await Account.find({ $or: [{ email }, { name }] })
 
     if (dups && dups.length > 0) {
         console.log("User already created!")
@@ -28,9 +32,10 @@ export const signup = async (req: Request<SignUpPayload>, res: Response) => {
 
     const verificationKey = uuidv4();
 
-    await putUser(username, email, password, verificationKey)
 
-    const verificationLink = `http://mahirjeremy.cse356.compas.cs.stonybrook.edu/verify?email=${encodeURIComponent(email)}&key=${verificationKey}`
+    await putUser(name, email, password, verificationKey)
+
+    const verificationLink = `http://mahirjeremy.cse356.compas.cs.stonybrook.edu/users/verify?email=${encodeURIComponent(email)}&key=${verificationKey}`
 
     const transport = createTransport({
         sendmail: true,
@@ -43,7 +48,7 @@ export const signup = async (req: Request<SignUpPayload>, res: Response) => {
         to: email,
         subject: 'Verify account for CSE 356 website',
         text: verificationLink
-    }, (err, info) => console.log)
+    })
 
     return res.json({ error: false })
 }
@@ -67,8 +72,8 @@ export const verify = async (req: Request, res: Response) => {
 
     if (key === user.verificationKey) {
         await Account.findOneAndUpdate({ email }, { isVerified: true })
+        req.session.account = JSON.stringify({ email, password: user.password })
         return res.json({ error: false })
-
     }
 
     return res.json({ error: true, message: "Invalid verification" })
@@ -82,31 +87,38 @@ export const login = async (req: Request<LoginPayload>, res: Response) => {
     const { email, password } = req.body
 
     if (!email || !password) {
-        return res.json({ error: true, message: "Username/password not found" })
+        console.log(`Login: Name/pass not found`)
+        return res.json({ error: true, message: "name/password not found" })
     }
 
-    const user = await Account.findOne({ email, password })
+    const user = await Account.findOne({ email })
 
     if (!user) {
+        console.log(`Login: user not found`)
         return res.json({ error: true, message: "User not found" })
     }
 
     if (!user.isVerified) {
+        console.log(`Login: user is not verified`)
         return res.json({ error: true, message: "User not verified" })
     }
 
-    if (req.session) {
+    if (user.password === password) {
         req.session.account = JSON.stringify({ email, password })
-        req.session.id = uuidv4()
-        return res.json({ error: false })
+
+        console.log(`Login: set session: ${req.sessionID}`)
+
+        return res.json({ error: false, name: user.name })
     } else {
-        return res.json({ error: true, message: "Session not found" })
+        console.log(`Login: wrong pass. Got ${password}, expected: ${user.password}`)
+        return res.json({ error: true, message: "Invalid password" })
+
     }
 }
 
 export const logout = async (req: Request, res: Response) => {
-    if (req.session?.account) {
-        req.session.destroy()
+    if (req.session.account || req.session.id) {
+        req.session.destroy(() => { console.log("destroyed session") })
         return res.json({ error: false });
 
     }
@@ -115,15 +127,22 @@ export const logout = async (req: Request, res: Response) => {
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
     const { account } = req.session as any;
+
+    if (!account) {
+        console.log(`Middleware (${req.sessionID}): No session`)
+        return res.json({ error: true, message: "Session not found" });
+    }
+
     const { email, password } = JSON.parse(account);
 
     if (!email || !password) {
+        console.log(`Middleware (${req.sessionID}): No email/pass`)
         return res.json({ error: true, message: "Email/password not supplied" });
     }
 
     const acc = await Account.findOne({ email: email, password: password });
     if (!acc) {
-        console.log("User not found")
+        console.log(`Middleware (${req.sessionID}): User not found`)
         return res.json({ error: true, message: "User not found" });
     }
 
@@ -135,19 +154,26 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 //for debugging
 export const status = async (req: Request, res: Response) => {
     const { account } = req.session as any;
+
+    if (!account) {
+        console.log(`Middleware (${req.sessionID}): No session`)
+        return res.json({ error: true, message: "Session not found" });
+    }
+
     const { email, password } = JSON.parse(account);
 
     if (!email || !password) {
+        console.log(`Middleware (${req.sessionID}): No email/pass`)
         return res.json({ error: true, message: "Email/password not supplied" });
     }
 
     const acc = await Account.findOne({ email: email, password: password });
     if (!acc) {
-        console.log("User not found")
+        console.log(`Middleware (${req.sessionID}): User not found`)
         return res.json({ error: true, message: "User not found" });
     }
 
-    return res.json({ error: false })
+    return res.json({ error: false, message: "Session is valid" })
 }
 
 router.post('/signup', signup)

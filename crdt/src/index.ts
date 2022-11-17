@@ -61,4 +61,14 @@ exports.CRDT = class {
     const converter = new QuillDeltaToHtmlConverter(this.document.getText().toDelta())
     return converter.convert()
   }
+
+  insertImage(index: number, url: string) {
+    const state = encodeStateVector(this.document)
+    const text = this.document.getText()
+    text.insertEmbed(index, 'image', `/${url}`)
+
+    const update = encodeStateAsUpdate(this.document, state)
+    const payload = { event: 'update', data: fromUint8Array(update), client_id: this.clientID }
+    this.cb(JSON.stringify(payload), true)
+  }
 };

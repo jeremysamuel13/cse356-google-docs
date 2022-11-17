@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link, useNavigate } from "react-router-dom";
-import { useCookies } from 'react-cookie'
+import { useNavigate } from "react-router-dom";
 import axios from 'axios';
 import DocElement from './DocElement';
 
@@ -41,7 +40,7 @@ const Home = () => {
         </div>
         <button onClick={() => {
           if (id.trim()) {
-            navigate(`/doc/${id.trim()}`)
+            navigate(`/edit/${id.trim()}`)
           }
         }}>Go to room</button>
       </div>

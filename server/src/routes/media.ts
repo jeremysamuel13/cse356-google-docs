@@ -8,7 +8,7 @@ import fs from 'fs'
 const router = Router()
 
 export const upload = async (req: Request, res: Response) => {
-    const { image } = req.files as any
+    const { file: image } = req.files as any
     if (!['image/jpeg', 'image/png'].includes(image.mimetype)) {
         return res.json({ error: true, message: "Invalid MIME type. Only accepts .jpeg and .png files" })
     }
