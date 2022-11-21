@@ -7,14 +7,20 @@ import fs from 'fs'
 
 const router = Router()
 
+const extMap = {
+    'image/jpeg': 'jpeg',
+    'image/png': 'png',
+    'image/gif': 'gif'
+}
+
 export const upload = async (req: Request, res: Response) => {
     const { file: image } = req.files as any
-    if (!['image/jpeg', 'image/png'].includes(image.mimetype)) {
+    if (!Object.keys(extMap).includes(image.mimetype)) {
         return res.json({ error: true, message: "Invalid MIME type. Only accepts .jpeg and .png files" })
     }
 
     const mediaid = uuidv4()
-    const ext = image.mimetype === 'image/png' ? 'png' : 'jpeg'
+    const ext = extMap[image.mimetype]
     const filepath = `/cse356-google-docs/server_uploads/${mediaid}.${ext}`
 
     image.mv(filepath, async (err) => {
