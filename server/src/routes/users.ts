@@ -146,7 +146,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         return res.json({ error: true, message: "User not found" });
     }
 
-    res.locals.account = acc
+    res.locals.name = acc.name
 
     next()
 }

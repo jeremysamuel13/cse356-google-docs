@@ -42,7 +42,7 @@ export const connect = async (req: Request, res: Response, next: NextFunction) =
 
     const session_id = req.sessionID;
 
-    clients[id].addClient(sse, client_id, session_id, res.locals.account)
+    clients[id].addClient(sse, client_id, session_id, res.locals.name)
     const update = Y.encodeStateAsUpdate(document);
     const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
     console.log(`${client_id}: Syncing`)
@@ -73,7 +73,7 @@ export const op = async (req: Request<Event>, res: Response) => {
         const update = toUint8Array(body.data)
         const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
         await Promise.all([ymongo.storeUpdate(id, update), clients[id].sendToAll(JSON.stringify(payload), EventType.Update, body.client_id)])
-        updateDocument(id)
+        await updateDocument(id)
         //console.log("Update success")
         return res.json({ error: false })
     }

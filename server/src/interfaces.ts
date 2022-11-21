@@ -1,6 +1,5 @@
 import SSE from "express-sse-ts";
 import { Types, Document } from "mongoose";
-import { v4 as uuidv4 } from 'uuid'
 import { IAccount } from "./db/userSchema";
 export enum EventType {
     Sync = "sync",
@@ -27,19 +26,20 @@ export interface Cursor {
 type AccountType = (Document<unknown, any, IAccount> & IAccount & {
     _id: Types.ObjectId;
 })
+
 export class Client {
     client_id: string;
     session_id: string;
     res: SSE;
     cursor: Cursor;
-    account: AccountType;
+    name: string;
 
-    constructor(res: SSE, client_id, session_id, account) {
+    constructor(res: SSE, client_id: string, session_id: string, name: string) {
         this.client_id = client_id
         this.session_id = session_id
         this.res = res
         this.cursor = {}
-        this.account = account;
+        this.name = name;
     }
 
     send(data: string, event: EventType, exclude?: string) {
@@ -64,8 +64,8 @@ export class ClientManager {
     }
 
     //add client to manager
-    addClient(res: SSE, client_id, session_id, account) {
-        this.clients.set(client_id, new Client(res, client_id, session_id, account))
+    addClient(res: SSE, client_id: string, session_id: string, name: string) {
+        this.clients.set(client_id, new Client(res, client_id, session_id, name))
         return client_id
     }
 
@@ -90,7 +90,7 @@ export class ClientManager {
 
     //get all cursors
     getCursors() {
-        return Array.from(this.clients.values()).map(c => ({ session_id: c.client_id, name: c.account?.name, cursor: c.cursor }))
+        return Array.from(this.clients.values()).map(c => ({ session_id: c.client_id, name: c.name, cursor: c.cursor }))
     }
 
     //get client by client_id
@@ -107,7 +107,7 @@ export class ClientManager {
     async emitPresence(c: Client) {
         //console.log(c)
         //console.log(c.session_id)
-        const payload = { session_id: c.session_id, client_id: c.client_id, name: c.account?.name, cursor: c.cursor }
+        const payload = { session_id: c.session_id, client_id: c.client_id, name: c.name, cursor: c.cursor }
         await this.sendToAll(JSON.stringify(payload), EventType.Presence, c.client_id)
         //console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
     }
@@ -116,7 +116,7 @@ export class ClientManager {
     async sendPresence(c: Client, to: string) {
         //console.log(c)
         //console.log(c.session_id)
-        const payload = { session_id: c.session_id, name: c.account?.name, cursor: c.cursor }
+        const payload = { session_id: c.session_id, name: c.name, cursor: c.cursor }
         await this.sendTo(to, JSON.stringify(payload), EventType.Presence, c.client_id)
         //console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
     }
