@@ -26,6 +26,7 @@ const DocElement = ({ document: { id, name }, onDiscard }: Props) => {
     return (
         <div>
             <Link to={`/edit/${id}`}>{name}</Link>
+            <Link to={`/readonly/${id}`}><button>ReadOnly</button></Link>
             <button onClick={handleDelete}>X</button>
         </div>
     )

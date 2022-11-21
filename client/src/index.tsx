@@ -3,12 +3,12 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import Home from './Home';
 import Doc from './Doc'
-import { CookiesProvider } from 'react-cookie';
 import {
   createBrowserRouter,
   RouterProvider,
 } from "react-router-dom";
 import Login from './Login';
+import ReadOnlyDoc from './ReadOnlyDoc';
 
 const router = createBrowserRouter([
   {
@@ -22,6 +22,10 @@ const router = createBrowserRouter([
   {
     path: "/login",
     element: <Login />,
+  },
+  {
+    path: "/readonly/:id",
+    element: <ReadOnlyDoc />
   }
 ]);
 
@@ -31,8 +35,6 @@ const root = ReactDOM.createRoot(
 
 root.render(
   <React.StrictMode>
-    <CookiesProvider>
-      <RouterProvider router={router} />
-    </CookiesProvider>
+    <RouterProvider router={router} />
   </React.StrictMode>
 );

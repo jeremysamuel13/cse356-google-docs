@@ -33,7 +33,7 @@ exports.CRDT = class {
       text.delete(0, text.length)
     }
     applyUpdate(this.document, toUint8Array(data.update))
-    const payload = { event: 'update', data: fromUint8Array(data.update), client_id: this.clientID }
+    const payload = { event: 'update', data: data.update, client_id: this.clientID }
     this.cb(JSON.stringify(payload), false)
   }
 

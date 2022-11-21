@@ -8,6 +8,7 @@ import { toUint8Array, fromUint8Array } from 'js-base64';
 import { doesDocumentExist } from './collections';
 import { authMiddleware } from './users';
 import { v4 as uuidv4 } from 'uuid'
+import { updateDocument } from '../db/elasticsearch';
 
 const router = Router()
 
@@ -44,8 +45,9 @@ export const connect = async (req: Request, res: Response, next: NextFunction) =
     const update = Y.encodeStateAsUpdate(document);
     const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
     console.log(`${client_id}: Syncing`)
-    await clients[id].sendTo(client_id, JSON.stringify(payload), EventType.Sync)
-    await clients[id].receivePresence(client_id)
+
+    await Promise.all([clients[id].sendTo(client_id, JSON.stringify(payload), EventType.Sync), clients[id].receivePresence(client_id)])
+
     req.on("close", () => {
         clients[id].removeClient(client_id)
     })
@@ -60,17 +62,19 @@ export const op = async (req: Request<Event>, res: Response) => {
         return res.json({ error: true, message: "Not json" })
     }
 
-    console.log("OP CALLED")
+    //console.log("OP CALLED")
 
     const { id } = req.params as any
     const body: Event = req.body
 
     if (body.event === EventType.Update) {
-        console.log(`${body.client_id}: Sent update`)
+        //console.log(`${body.client_id}: Sent update`)
         const update = toUint8Array(body.data)
+        Y.logUpdate(update)
         const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
         await Promise.all([ymongo.storeUpdate(id, update), clients[id].sendToAll(JSON.stringify(payload), EventType.Update, body.client_id)])
-        console.log("Update success")
+        updateDocument(id)
+        //console.log("Update success")
         return res.json({ error: false })
     }
 

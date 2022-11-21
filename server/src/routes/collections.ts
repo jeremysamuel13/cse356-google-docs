@@ -4,6 +4,8 @@ import * as Y from "yjs";
 import { v4 as uuidv4 } from 'uuid'
 import { authMiddleware } from './users';
 import mongoose from 'mongoose'
+import { createDocument, deleteDocument } from '../db/elasticsearch';
+
 
 const router = Router()
 
@@ -45,8 +47,8 @@ export const create = async (req: Request<CreateRequestPayload>, res: Response) 
     const id = uuidv4()
 
     const doc = await ymongo.getYDoc(id)
-    await ymongo.setMeta(id, 'name', name)
-    await ymongo.storeUpdate(id, Y.encodeStateAsUpdate(doc))
+
+    await Promise.all([ymongo.getYDoc(id), ymongo.setMeta(id, 'name', name), ymongo.storeUpdate(id, Y.encodeStateAsUpdate(doc)), createDocument(id, doc, name)])
 
     return res.json({ error: false, id })
 }
@@ -66,8 +68,7 @@ export const deleteCollection = async (req: Request<DeleteRequestPayload>, res: 
         return res.json({ error: true, message: "Document doesn't exists" })
     }
 
-    await ymongo.delMeta(id, 'name')
-    await ymongo.clearDocument(id);
+    await Promise.all([ymongo.delMeta(id, 'name'), ymongo.clearDocument(id), deleteDocument(id)])
 
     return res.json({ error: false });
 }

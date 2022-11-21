@@ -46,7 +46,7 @@ export class Client {
         return new Promise<void>((resolve, reject) => {
             if (this.client_id !== exclude) {
                 this.res.send(data, event)
-                console.log(`${this.client_id}: Data was sent (excluded: ${exclude})`)
+                //console.log(`${this.client_id}: Data was sent (excluded: ${exclude})`)
             }
             return resolve()
         })
@@ -105,20 +105,20 @@ export class ClientManager {
 
     //emit presence to all other clients
     async emitPresence(c: Client) {
-        console.log(c)
-        console.log(c.session_id)
+        //console.log(c)
+        //console.log(c.session_id)
         const payload = { session_id: c.session_id, client_id: c.client_id, name: c.account?.name, cursor: c.cursor }
         await this.sendToAll(JSON.stringify(payload), EventType.Presence, c.client_id)
-        console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
+        //console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
     }
 
     //send presence to client
     async sendPresence(c: Client, to: string) {
-        console.log(c)
-        console.log(c.session_id)
+        //console.log(c)
+        //console.log(c.session_id)
         const payload = { session_id: c.session_id, name: c.account?.name, cursor: c.cursor }
         await this.sendTo(to, JSON.stringify(payload), EventType.Presence, c.client_id)
-        console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
+        //console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
     }
 
     async receivePresence(client_id: string) {
