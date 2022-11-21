@@ -7,7 +7,7 @@
     "build:crdt": "cd crdt && npm run build && cd ..",
     "build:client": "cd client && npm run build && cd ..",
     "clear-mongo": "mongosh \"mongodb://admin:cse356@127.0.0.1:27017/docs?authSource=admin\" clearMongo.js",
-    "restart:server": "cd server && pm2 stop all && pm2 delete all && pm2 start 'ts-node ./src/index.ts' && cd ..",
+    "restart:server": "cd server && pm2 stop all && pm2 delete all && pm2 start 'npm run build && npm run start' && cd ..",
     "deploy": "npm run build:crdt && npm run build:client && npm run clear-mongo && npm run restart:server",
     "deploy:server": "npm run clear-mongo && npm run restart:server && pm2 flush all"
   },

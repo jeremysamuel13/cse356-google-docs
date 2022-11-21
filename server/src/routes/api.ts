@@ -27,6 +27,7 @@ export const connect = async (req: Request, res: Response, next: NextFunction) =
     }
 
     res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("X-Accel-Buffering", "no")
 
     console.log(`Started connection with room: ${id}`)
 
@@ -70,7 +71,6 @@ export const op = async (req: Request<Event>, res: Response) => {
     if (body.event === EventType.Update) {
         //console.log(`${body.client_id}: Sent update`)
         const update = toUint8Array(body.data)
-        Y.logUpdate(update)
         const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
         await Promise.all([ymongo.storeUpdate(id, update), clients[id].sendToAll(JSON.stringify(payload), EventType.Update, body.client_id)])
         updateDocument(id)

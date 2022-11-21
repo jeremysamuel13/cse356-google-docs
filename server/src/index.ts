@@ -72,7 +72,13 @@ app.use(session({
     saveUninitialized: true,
     secret: SECRET_KEY,
     httpOnly: false,
-    store: MongoStore.create({ mongoUrl: mongostr }),
+    store: MongoStore.create({
+        mongoUrl: mongostr,
+        autoRemove: 'interval',
+        autoRemoveInterval: 1,
+        ttl: 30 * 60 // = 30 minutes
+
+    }),
     proxy: true,
     cookie: {
         domain: "mahirjeremy.cse356.compas.cs.stonybrook.edu"

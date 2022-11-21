@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express'
 import { elastic_client } from '..'
 import { ElasticDoc, INDEX } from '../db/elasticsearch'
+import { authMiddleware } from './users';
 
 
 const router = Router()
@@ -22,21 +23,43 @@ export const search = async (req: Request, res: Response) => {
         },
         highlight: {
             fields: {
-                contents: {},
-                name: {}
+                contents: {
+                    number_of_fragments: 1
+                },
+                name: {
+                    number_of_fragments: 1
+                }
             }
         }
     })
 
-    console.log(search_results)
+    const mapped = search_results.hits?.hits?.map(val => {
+        const base = { id: val._source?.name, docid: val._id }
+        if (val.highlight?.name.length !== 0) {
+            return { ...base, snippet: val.highlight?.name[0] }
+        }
 
-    return res.json({ error: false, results: search_results })
+        if (val.highlight?.contents.length !== 0) {
+            return { ...base, snippet: val.highlight?.contents[0] }
+        }
+
+        return { snippet: null }
+    })
+
+    return res.json(mapped)
 }
 
 export const suggest = async (req: Request, res: Response) => {
+    const { q } = req.query
 
+    if (!q) {
+        return res.json({ error: true, message: "Missing query param" })
+    }
+
+    return res.json([`${q}is`, `${q}as`, `${q}een`, `${q}art`])
 }
 
+router.use(authMiddleware)
 router.get('/search', search)
 router.get('/suggest', suggest)
 

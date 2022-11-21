@@ -65,7 +65,8 @@ exports.CRDT = class {
   insertImage(index: number, url: string) {
     const state = encodeStateVector(this.document)
     const text = this.document.getText()
-    text.insertEmbed(index, 'image', `/${url}`)
+    text.insertEmbed(index, { image: url })
+    console.log("Embedded image?")
 
     const update = encodeStateAsUpdate(this.document, state)
     const payload = { event: 'update', data: fromUint8Array(update), client_id: this.clientID }

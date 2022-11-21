@@ -14,8 +14,9 @@
     crdt.insert(5, 'World', { bold: true });
     crdt.insert(5, ' ');
     crdt.insert(12, '!');
-    const update = "{\"update\":\"[0,0]\",\"client_id\":\"af645644-b565-4ef8-bb09-232c80197069\",\"document_id\":\"grader-m1\",\"event\":\"sync\"}"
-    crdt.update(update)
+    crdt.insertImage(25, "https://imgs.search.brave.com/OCVjydLlTLZQg9xtvmdXm7DY4LCdx98fl61av1YEetc/rs:fit:1024:799:1/g:ce/aHR0cDovL2NkbjE0/MC5waWNzYXJ0LmNv/bS8yODUxMzA0MzQw/MDYyMDEuZ2lmP3Rv/PW1pbiZyPTEwMjQ.gif")
+    // const update = "{\"update\":\"[0,0]\",\"client_id\":\"af645644-b565-4ef8-bb09-232c80197069\",\"document_id\":\"grader-m1\",\"event\":\"sync\"}"
+    // crdt.update(update)
     var text = crdt.toHTML();
     document.write(text);
   </script>

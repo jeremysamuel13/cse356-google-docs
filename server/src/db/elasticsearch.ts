@@ -2,7 +2,7 @@ import { elastic_client, ymongo } from "../index";
 import { QuillDeltaToHtmlConverter } from 'quill-delta-to-html';
 import { Doc } from "yjs";
 
-const FLUSH_INTERVAL = 1500;
+const FLUSH_INTERVAL = 1000;
 export const INDEX = 'cse356-m3';
 
 export interface ElasticDoc {
@@ -19,13 +19,13 @@ class ElasticQueue {
     constructor() {
         this.queue = new Set()
         this.interval = null
-        console.log("created queue")
+        //console.log("created queue")
     }
 
     queueUpdate(id: string) {
         this.queue.add(id)
         this.startInterval()
-        console.log(`Added to queue: ${id}`)
+        //console.log(`Added to queue: ${id}`)
     }
 
     async flushQueue() {
@@ -36,13 +36,13 @@ class ElasticQueue {
             this.queue.clear()
             await Promise.all(keys.map(id => this.flushEntry(id)))
             await refresh()
-            console.log("Queue flushed")
+            //console.log("Queue flushed")
         }
     }
 
     async flushEntry(id: string) {
         const doc = await ymongo.getYDoc(id);
-        console.log(`Flushed from queue: ${id}`)
+        //console.log(`Flushed from queue: ${id}`)
         return await elastic_client.update<ElasticDoc, UpdateElasticDoc>({
             index: INDEX,
             id,
@@ -55,21 +55,21 @@ class ElasticQueue {
     startInterval() {
         if (!this.interval) {
             this.interval = setInterval(() => { this.flushQueue() }, FLUSH_INTERVAL)
-            console.log("Interval started")
+            //console.log("Interval started")
         }
     }
 
     stopInterval() {
         this.interval && clearInterval(this.interval)
         this.interval = null
-        console.log("Interval stopped")
+        //console.log("Interval stopped")
     }
 }
 
 export const elastic_queue = new ElasticQueue()
 
-console.log("CREATED QUEUE")
-console.log(elastic_queue)
+//console.log("CREATED QUEUE")
+//console.log(elastic_queue)
 
 export const createIndicies = async () => {
     const exists = await elastic_client.indices.exists({ index: INDEX })
@@ -105,7 +105,7 @@ export const createIndicies = async () => {
 }
 
 export const refresh = async () => {
-    console.log("Refreshing index")
+    //console.log("Refreshing index")
     return await elastic_client.indices.refresh({ index: INDEX })
 }
 
