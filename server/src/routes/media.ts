@@ -14,9 +14,13 @@ const extMap = {
 }
 
 export const upload = async (req: Request, res: Response) => {
+    if (!req.files) {
+        return res.json({ error: true, message: "File not recieved" })
+    }
+
     const { file: image } = req.files as any
     if (!Object.keys(extMap).includes(image.mimetype)) {
-        return res.json({ error: true, message: "Invalid MIME type. Only accepts .jpeg and .png files" })
+        return res.json({ error: true, message: "Invalid MIME type. Only accepts .jpeg, .gif, and .png files" })
     }
 
     const mediaid = uuidv4()

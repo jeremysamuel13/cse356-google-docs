@@ -21,6 +21,9 @@ declare module 'express-session' {
 const signup = async (req: Request<SignUpPayload>, res: Response) => {
     const { email, name, password } = req.body
 
+    console.log({ email })
+
+
     if (!email || !name || !password) {
         return res.json({ error: true, message: "name/email/password not found" })
     }
@@ -51,6 +54,9 @@ const signup = async (req: Request<SignUpPayload>, res: Response) => {
 
 const verify = async (req: Request, res: Response) => {
     const { email, key } = req.query;
+
+    console.log({ email })
+
 
     if (!email) {
         return res.json({ error: true, message: "Email not found" })
@@ -83,6 +89,8 @@ interface LoginPayload {
 
 const login = async (req: Request<LoginPayload>, res: Response) => {
     const { email, password } = req.body
+
+    console.log({ email })
 
     if (!email || !password) {
         console.log(`Login: Name/pass not found`)

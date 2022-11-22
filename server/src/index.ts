@@ -16,8 +16,6 @@ import { createIndicies } from './db/elasticsearch';
 
 import { createTransport } from 'nodemailer'
 
-import path from 'path';
-
 import users from './routes/users'
 import collection from './routes/collections'
 import media from './routes/media'
@@ -64,8 +62,10 @@ promises.push(createIndicies(DELETE === "true"))
 // EXPRESS
 const app: Express = express();
 
+app.use(require('express-status-monitor')());
+
 //logger
-// app.use(morgan("dev"))
+app.use(morgan("dev"))
 
 //mail 
 export const transport = createTransport({
@@ -102,14 +102,18 @@ app.use('/api', api);
 app.use('/index', index);
 
 //static routes: no auth needed
-// app.use('/library', express.static("/cse356-google-docs/crdt/dist"))
-// app.get('/*', express.static("/cse356-google-docs/client/build"), (_, res) => {
-//     res.sendFile("/cse356-google-docs/client/build/index.html")
-// })
+app.use('/library', express.static("/cse356-google-docs/crdt/dist"))
+app.use(express.static("/cse356-google-docs/client/build"))
+app.get('/*', (req, res) => {
+    if (!res.headersSent) {
+        res.setHeader('X-CSE356', '63094ca6047a1139b66d985a')
+        res.sendFile('/cse356-google-docs/client/build/index.html')
+    }
+})
 
 //only start server once all promises are resolved
 Promise.all(promises).then(() => {
-    app.listen(PORT, async () => {
+    app.listen(80, async () => {
         console.log(`⚡️[server]: Server is running at http://localhost:${PORT}`);
     })
 })

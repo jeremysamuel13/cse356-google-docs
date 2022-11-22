@@ -71,15 +71,22 @@ export const op = async (req: Request<Event>, res: Response) => {
     //console.log("OP CALLED")
 
     const { id } = req.params as any
+
+    if (!id) {
+        console.log("Missing ID")
+        return res.json({ error: true, message: "Missing id" })
+    }
+
+    res.send({})
+
     const body: Event = req.body
 
     //console.log(`${body.client_id}: Sent update`)
     const update = toUint8Array(body.data)
     const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
     const promises = [ymongo.storeUpdate(id, update), updateDocument(id), clients[id].sendToAll(JSON.stringify(payload), EventType.Update)]
-    await Promise.all(promises)
     //console.log("Update success")
-    return res.json({ error: false })
+    return await Promise.all(promises)
 
 }
 
