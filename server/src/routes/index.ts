@@ -1,5 +1,5 @@
 import { Request, Response, Router } from 'express'
-import { elastic_client } from '..'
+import { elastic_client } from '../index'
 import { ElasticDoc, INDEX } from '../db/elasticsearch'
 import { authMiddleware } from './users';
 
@@ -30,16 +30,17 @@ export const search = async (req: Request, res: Response) => {
                     number_of_fragments: 1
                 }
             }
-        }
+        },
+        size: 10
     })
 
     const mapped = search_results.hits?.hits?.map(val => {
         const base = { id: val._source?.name, docid: val._id }
-        if (val.highlight?.name.length !== 0) {
+        if (val.highlight?.name) {
             return { ...base, snippet: val.highlight?.name[0] }
         }
 
-        if (val.highlight?.contents.length !== 0) {
+        if (val.highlight?.contents) {
             return { ...base, snippet: val.highlight?.contents[0] }
         }
 
@@ -55,6 +56,29 @@ export const suggest = async (req: Request, res: Response) => {
     if (!q) {
         return res.json({ error: true, message: "Missing query param" })
     }
+
+    const search_results = await elastic_client.search<ElasticDoc>({
+        index: INDEX,
+        query: {
+            bool: {
+                should: [
+                    {
+                        match_phrase_prefix: {
+                            contents: q as string
+                        }
+                    },
+                    {
+                        match_phrase_prefix: {
+                            name: q as string
+                        }
+                    },
+                ]
+            }
+        },
+        size: 10
+    })
+
+    console.log(search_results)
 
     return res.json([`${q}is`, `${q}as`, `${q}een`, `${q}art`])
 }

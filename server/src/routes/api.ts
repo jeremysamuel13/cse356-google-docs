@@ -1,56 +1,61 @@
 import { Request, Response, NextFunction, Router } from 'express';
-import { ymongo } from '../index'
-import { Clients } from '../interfaces'
+import { ymongo, clients } from '../index'
 import SSE from "express-sse-ts";
 import { EventType, ClientManager, Event } from '../interfaces'
 import * as Y from "yjs";
 import { toUint8Array, fromUint8Array } from 'js-base64';
 import { doesDocumentExist } from './collections';
 import { authMiddleware } from './users';
-import { v4 as uuidv4 } from 'uuid'
 import { updateDocument } from '../db/elasticsearch';
 
 const router = Router()
 
-export const clients = {} as Clients
-
 export const connect = async (req: Request, res: Response, next: NextFunction) => {
-    const client_id = uuidv4()
-
-    console.log(`${client_id}: Connecting`)
 
     const { id } = req.params
 
-    if (!(await doesDocumentExist(ymongo, id))) {
+    const client_id = req.sessionID;
+
+    console.log(`${client_id}: Connecting`)
+
+    if (!(await doesDocumentExist(id))) {
         console.log("Document doesnt exist")
         return res.json({ error: true, message: "Document does not exist" })
     }
 
-    res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("X-Accel-Buffering", "no")
 
-    console.log(`Started connection with room: ${id}`)
+    const exists = clients[id]?.getClient(client_id)
+    let sse: SSE;
+    if (exists) {
+        sse = exists.res
+    } else {
+        sse = new SSE()
+        if (!clients[id]) {
+            clients[id] = new ClientManager()
+        }
+        clients[id].addClient(sse, client_id, req.session.name!)
+    }
 
     // find document or create it
     const document: Y.Doc = await ymongo.getYDoc(id)
-
-    const sse = new SSE()
     sse.init(req, res, next)
-    if (!clients[id]) {
-        clients[id] = new ClientManager()
-    }
 
-    const session_id = req.sessionID;
+    console.log(`Started connection with room: ${id}`)
 
-    clients[id].addClient(sse, client_id, session_id, res.locals.name)
     const update = Y.encodeStateAsUpdate(document);
     const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
     console.log(`${client_id}: Syncing`)
 
     await Promise.all([clients[id].sendTo(client_id, JSON.stringify(payload), EventType.Sync), clients[id].receivePresence(client_id)])
 
-    req.on("close", () => {
-        clients[id].removeClient(client_id)
+    req.on("close", async () => {
+        await clients[id].removeClient(client_id)
+        res.end()
+    })
+    req.on("finish", async () => {
+        await clients[id].removeClient(client_id)
+        res.end()
     })
     console.log("Connect success")
 
@@ -68,17 +73,14 @@ export const op = async (req: Request<Event>, res: Response) => {
     const { id } = req.params as any
     const body: Event = req.body
 
-    if (body.event === EventType.Update) {
-        //console.log(`${body.client_id}: Sent update`)
-        const update = toUint8Array(body.data)
-        const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
-        await Promise.all([ymongo.storeUpdate(id, update), clients[id].sendToAll(JSON.stringify(payload), EventType.Update, body.client_id)])
-        await updateDocument(id)
-        //console.log("Update success")
-        return res.json({ error: false })
-    }
+    //console.log(`${body.client_id}: Sent update`)
+    const update = toUint8Array(body.data)
+    const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
+    const promises = [ymongo.storeUpdate(id, update), updateDocument(id), clients[id].sendToAll(JSON.stringify(payload), EventType.Update)]
+    await Promise.all(promises)
+    //console.log("Update success")
+    return res.json({ error: false })
 
-    return res.json({ error: true, message: "Invalid event type" })
 }
 
 export const presence = async (req: Request, res: Response) => {
@@ -90,13 +92,15 @@ export const presence = async (req: Request, res: Response) => {
     const { id } = req.params as any
     const { index, length } = req.body;
 
-    // TODO: PROBLEMATIC. TRY TO GUARANTEE UNIQUE SESSION INSTEAD.
-    const client = clients[id].getClientsBySession(req.sessionID)
-    await Promise.all(client.map(async c => {
-        c.setCursor(index, length)
-        await clients[id].emitPresence(c)
-        console.log(`${c.client_id}: Sent presence`)
-    }))
+    const c = clients[id].getClient(req.sessionID)
+
+    if (!c) {
+        return res.json({ error: true, message: "Client session not found" })
+    }
+
+    c.setCursor(index, length)
+    await clients[id].emitPresence(c)
+    console.log(`${c.client_id}: Sent presence`)
 
     console.log("Presence success")
 

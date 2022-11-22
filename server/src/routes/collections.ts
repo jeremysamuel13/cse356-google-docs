@@ -6,18 +6,17 @@ import { authMiddleware } from './users';
 import mongoose from 'mongoose'
 import { createDocument, deleteDocument } from '../db/elasticsearch';
 
-
 const router = Router()
 
-export const doesDocumentExist = async (ymongo, document) => {
+export const doesDocumentExist = async (document) => {
     const documents: Array<string> = await ymongo.getAllDocNames()
     const doc = documents.find((val) => val === document)
     return !!doc
 }
 
-export const doesDocumentNameExist = async (ymongo, name) => {
+export const doesDocumentNameExist = async (name) => {
     const documents: Array<string> = await ymongo.getAllDocNames()
-    for (let e of documents) {
+    for (const e of documents) {
         const metaVal = await ymongo.getMeta(e, 'name')
         if (metaVal === name) {
             return { exists: true, id: e }
@@ -39,7 +38,7 @@ export const create = async (req: Request<CreateRequestPayload>, res: Response) 
         return res.json({ error: true, message: "Missing name" })
     }
 
-    const { exists, id: existingID } = await doesDocumentNameExist(ymongo, name)
+    const { exists, id: existingID } = await doesDocumentNameExist(name)
     if (exists) {
         return res.json({ error: true, message: "Document already exists", id: existingID })
     }
@@ -64,7 +63,7 @@ export const deleteCollection = async (req: Request<DeleteRequestPayload>, res: 
         return res.json({ error: true, message: "Missing id" })
     }
 
-    if (!(await doesDocumentExist(ymongo, id))) {
+    if (!(await doesDocumentExist(id))) {
         return res.json({ error: true, message: "Document doesn't exists" })
     }
 

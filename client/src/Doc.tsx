@@ -68,6 +68,13 @@ const modules = {
     }
 }
 
+const onTextChange = (id: string | undefined, clientID: string) => (async (update: Uint8Array) => {
+    console.log({ update })
+    const payload = { event: 'update', data: fromUint8Array(update), client_id: clientID }
+    console.debug(payload)
+    await axios.post(`/api/op/${id}`, payload)
+})
+
 
 const Doc = () => {
     const { id } = useParams()
@@ -75,63 +82,44 @@ const Doc = () => {
     const [clientID, setClientID] = useState('')
     const [ref, setRef] = useState<ReactQuill | null>(null)
     const doc = useRef(new Y.Doc())
+    const binding = useRef<QuillBinding>(null!!)
 
     const refCallback = useCallback((quill: ReactQuill) => {
         if (!quill) {
             return
         }
-        const editor = quill.getEditor()
-        new QuillBinding(doc.current.getText(), editor)
         setRef(quill)
     }, [])
 
-    const onTextChange = useCallback(async (update: Uint8Array) => {
-        console.log({ update })
-        const payload = { event: 'update', data: fromUint8Array(update), client_id: clientID }
-        console.debug(payload)
-        await axios.post(`/api/op/${id}`, payload)
-    }, [clientID])
+    // useEffect(() => {
+    //     doc.current.on('update', onTextChange)
 
-    useEffect(() => {
-        doc.current.on('update', onTextChange)
-
-        return () => {
-            doc.current.off('update', onTextChange)
-        }
-    }, [onTextChange])
+    //     return () => {
+    //         doc.current.off('update', onTextChange)
+    //     }
+    // }, [onTextChange])
 
     useEffect(() => {
         if (!ref) { return }
 
-        const handleSync = (event: MessageEvent<any>) => {
-            console.debug("SYNC")
-            console.debug(event)
-            const data = JSON.parse(event.data)
-            const update = toUint8Array(data.update)
-            setClientID(data.client_id)
-            withoutObservation(() => {
-                const text = doc.current.getText()
-                text.delete(0, text.length)
-                Y.applyUpdate(doc.current, update)
-            })
-        }
+        const eventSource = new EventSource(`/api/connect/${id}`)
 
         const handleUpdate = (event: MessageEvent<any>) => {
             console.debug("UPDATE")
             console.debug(event)
             const data = JSON.parse(event.data)
-            if (data.client_id !== clientID) {
-                withoutObservation(() => {
-                    const update = toUint8Array(data.update)
-                    Y.applyUpdate(doc.current, update)
-                })
-            }
+            doc.current._observers.delete('update')
+            const update = toUint8Array(data.update)
+            Y.applyUpdate(doc.current, update)
+            Y.logUpdate(update)
+            doc.current.on('update', onTextChange(id, clientID))
+
         }
 
         const handlePresence = (event: MessageEvent<any>) => {
             console.log("PRESENCE")
             console.debug(event)
-            const { session_id, name, cursor } = JSON.parse(event.data)
+            const { client_id, name, cursor } = JSON.parse(event.data)
             const editor = ref.getEditor()
             console.log({ editor, ref })
             const cursors = editor?.getModule("cursors")
@@ -139,59 +127,47 @@ const Doc = () => {
             console.log(cursors)
             const randomColor = "#" + ((1 << 24) * Math.random() | 0).toString(16)
 
-            cursors.createCursor(session_id, name, randomColor)
-            cursors.moveCursor(session_id, cursor)
-            cursors.toggleFlag(session_id, true)
-
+            cursors.createCursor(client_id, name, randomColor)
+            cursors.moveCursor(client_id, cursor)
+            cursors.toggleFlag(client_id, true)
         }
 
-        const eventSource = new EventSource(`/api/connect/${id}`)
+        const handleSync = (event: MessageEvent<any>) => {
+            console.debug("SYNC")
+            console.debug(event)
+            const data = JSON.parse(event.data)
+            const update = toUint8Array(data.update)
+            setClientID(data.client_id)
 
-        eventSource.addEventListener('sync', handleSync)
-        eventSource.addEventListener('presence', handlePresence)
+            doc.current._observers.delete('update')
+
+            binding.current?.destroy()
+            doc.current = new Y.Doc()
+            Y.applyUpdate(doc.current, update)
+            const editor = ref.getEditor()
+            binding.current = new QuillBinding(doc.current.getText(), editor)
+
+            doc.current.on('update', onTextChange(id, data.client_id))
+            console.log("DONE WITH SYNC")
+        }
+
         eventSource.addEventListener('update', handleUpdate)
+        eventSource.addEventListener('presence', handlePresence)
+        eventSource.addEventListener('sync', handleSync)
 
         return () => {
-            eventSource.removeEventListener('update', handleUpdate)
-            eventSource.removeEventListener('sync', handleSync)
+            eventSource.removeEventListener('update', handleSync)
             eventSource.removeEventListener('presence', handlePresence)
+            eventSource.removeEventListener('sync', handlePresence)
             eventSource.close()
         }
     }, [ref])
 
 
-    // // useEffect(() => {
-    // //     console.log(`REF USEEFFECT: ${!!ref}`)
-    // //     if (ref) {
-    // //         const handlePresence = (event: MessageEvent<any>) => {
-    // //             console.debug(event)
-    // //             const { session_id, client_id, name, cursor } = JSON.parse(event.data)
-    // //             if (client_id !== clientID) {
-    // //                 console.log("PRESENCE")
-    // //                 const editor = ref.getEditor()
-    // //                 const cursors = editor?.getModule("cursors")
-    // //                 console.log("CURSORS FROM EDITOR")
-    // //                 console.log(cursors)
-    // //                 const randomColor = "#" + ((1 << 24) * Math.random() | 0).toString(16)
-    // //                 cursors.createCursor(session_id, name, randomColor)
-    // //                 cursors.moveCursor(id, cursor)
-    // //                 cursors.toggleFlag(id, true)
-    // //             }
-    // //         }
-
-    // //         eventSource.current.addEventListener('presence', handlePresence)
-
-    // //         return () => {
-    // //             eventSource.current.removeEventListener('presence', handlePresence)
-    // //         }
-
-    // //     }
-    // // }, [ref])
-
     const withoutObservation = (fn: any) => {
-        doc.current.off('update', onTextChange)
+        doc.current._observers.delete('update')
         fn()
-        doc.current.on('update', onTextChange)
+        doc.current.on('update', onTextChange(id, clientID))
     }
 
 

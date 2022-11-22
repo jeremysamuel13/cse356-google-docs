@@ -1,6 +1,6 @@
 import SSE from "express-sse-ts";
-import { Types, Document } from "mongoose";
-import { IAccount } from "./db/userSchema";
+import { applyUpdate, Doc } from "yjs";
+import { ymongo } from "./index";
 export enum EventType {
     Sync = "sync",
     Update = "update",
@@ -23,20 +23,14 @@ export interface Cursor {
     length?: number
 }
 
-type AccountType = (Document<unknown, any, IAccount> & IAccount & {
-    _id: Types.ObjectId;
-})
-
 export class Client {
     client_id: string;
-    session_id: string;
     res: SSE;
     cursor: Cursor;
     name: string;
 
-    constructor(res: SSE, client_id: string, session_id: string, name: string) {
+    constructor(res: SSE, client_id: string, name: string) {
         this.client_id = client_id
-        this.session_id = session_id
         this.res = res
         this.cursor = {}
         this.name = name;
@@ -45,7 +39,7 @@ export class Client {
     send(data: string, event: EventType, exclude?: string) {
         return new Promise<void>((resolve, reject) => {
             if (this.client_id !== exclude) {
-                this.res.send(data, event)
+                this.res.send(data, event, this.client_id)
                 //console.log(`${this.client_id}: Data was sent (excluded: ${exclude})`)
             }
             return resolve()
@@ -55,17 +49,22 @@ export class Client {
     setCursor(index: number, length: number) {
         this.cursor = { index, length }
     }
+
+    clearCursor() {
+        this.cursor = {}
+    }
 }
 
 export class ClientManager {
     clients: Map<string, Client>
+
     constructor() {
         this.clients = new Map()
     }
 
     //add client to manager
-    addClient(res: SSE, client_id: string, session_id: string, name: string) {
-        this.clients.set(client_id, new Client(res, client_id, session_id, name))
+    addClient(res: SSE, client_id: string, name: string) {
+        this.clients.set(client_id, new Client(res, client_id, name))
         return client_id
     }
 
@@ -80,9 +79,14 @@ export class ClientManager {
     }
 
     //remove client
-    removeClient(client_id: string, f?: any) {
-        this.clients.delete(client_id)
-        console.log(`${client_id}: Disconnected`)
+    async removeClient(client_id: string, f?: any) {
+        const client = this.clients.get(client_id)
+        if (client) {
+            client.clearCursor()
+            await this.emitPresence(client)
+            this.clients.delete(client_id)
+        }
+        console.log(`${client_id}: Disconnected (hide cursor)`)
         if (f) {
             f()
         }
@@ -90,7 +94,7 @@ export class ClientManager {
 
     //get all cursors
     getCursors() {
-        return Array.from(this.clients.values()).map(c => ({ session_id: c.client_id, name: c.name, cursor: c.cursor }))
+        return Array.from(this.clients.values()).map(c => ({ client_id: c.client_id, name: c.name, cursor: c.cursor }))
     }
 
     //get client by client_id
@@ -99,25 +103,16 @@ export class ClientManager {
     }
 
     //get clients by session_id
-    getClientsBySession(session_id: string) {
-        return Array.from(this.clients.values()).filter(c => c.session_id === session_id)
-    }
+    // getClientsBySession(session_id: string) {
+    //     return Array.from(this.clients.values()).filter(c => c.session_id === session_id)
+    // }
 
     //emit presence to all other clients
     async emitPresence(c: Client) {
         //console.log(c)
         //console.log(c.session_id)
-        const payload = { session_id: c.session_id, client_id: c.client_id, name: c.name, cursor: c.cursor }
-        await this.sendToAll(JSON.stringify(payload), EventType.Presence, c.client_id)
-        //console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
-    }
-
-    //send presence to client
-    async sendPresence(c: Client, to: string) {
-        //console.log(c)
-        //console.log(c.session_id)
-        const payload = { session_id: c.session_id, name: c.name, cursor: c.cursor }
-        await this.sendTo(to, JSON.stringify(payload), EventType.Presence, c.client_id)
+        const payload = { client_id: c.client_id, name: c.name, cursor: c.cursor }
+        await this.sendToAll(JSON.stringify(payload), EventType.Presence)
         //console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
     }
 

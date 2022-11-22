@@ -2,7 +2,7 @@ import { NextFunction, Request, Router, Response } from 'express'
 import { Account } from '../db/userSchema'
 import { v4 as uuidv4 } from 'uuid'
 import { putUser } from '../db/userManagement'
-import { createTransport } from 'nodemailer'
+import { transport, clients } from '../index'
 
 const router = Router()
 
@@ -12,11 +12,13 @@ interface SignUpPayload {
 
 declare module 'express-session' {
     interface SessionData {
-        account: any;
+        email: string;
+        password: string;
+        name: string;
     }
 }
 
-export const signup = async (req: Request<SignUpPayload>, res: Response) => {
+const signup = async (req: Request<SignUpPayload>, res: Response) => {
     const { email, name, password } = req.body
 
     if (!email || !name || !password) {
@@ -37,13 +39,7 @@ export const signup = async (req: Request<SignUpPayload>, res: Response) => {
 
     const verificationLink = `http://mahirjeremy.cse356.compas.cs.stonybrook.edu/users/verify?email=${encodeURIComponent(email)}&key=${verificationKey}`
 
-    const transport = createTransport({
-        sendmail: true,
-        path: '/usr/sbin/sendmail',
-        newline: 'unix'
-    })
-
-    transport.sendMail({
+    await transport.sendMail({
         from: 'root@mahirjeremy.cse356.compas.cs.stonybrook.edu',
         to: email,
         subject: 'Verify account for CSE 356 website',
@@ -53,7 +49,7 @@ export const signup = async (req: Request<SignUpPayload>, res: Response) => {
     return res.json({ error: false })
 }
 
-export const verify = async (req: Request, res: Response) => {
+const verify = async (req: Request, res: Response) => {
     const { email, key } = req.query;
 
     if (!email) {
@@ -72,7 +68,9 @@ export const verify = async (req: Request, res: Response) => {
 
     if (key === user.verificationKey) {
         await Account.findOneAndUpdate({ email }, { isVerified: true })
-        req.session.account = JSON.stringify({ email, password: user.password })
+        req.session.email = user.email
+        req.session.password = user.password
+        req.session.name = user.name
         return res.json({ error: false })
     }
 
@@ -83,7 +81,7 @@ interface LoginPayload {
     email: string, password: string
 }
 
-export const login = async (req: Request<LoginPayload>, res: Response) => {
+const login = async (req: Request<LoginPayload>, res: Response) => {
     const { email, password } = req.body
 
     if (!email || !password) {
@@ -104,7 +102,9 @@ export const login = async (req: Request<LoginPayload>, res: Response) => {
     }
 
     if (user.password === password) {
-        req.session.account = JSON.stringify({ email, password })
+        req.session.email = email
+        req.session.password = password
+        req.session.name = user.name
 
         console.log(`Login: set session: ${req.sessionID}`)
 
@@ -112,47 +112,39 @@ export const login = async (req: Request<LoginPayload>, res: Response) => {
     } else {
         console.log(`Login: wrong pass. Got ${password}, expected: ${user.password}`)
         return res.json({ error: true, message: "Invalid password" })
-
     }
 }
 
-export const logout = async (req: Request, res: Response) => {
-    if (req.session.account || req.session.id) {
+const logout = async (req: Request, res: Response) => {
+    if (req.session.email || req.session.password || req.session.id) {
+        Object.values(clients).forEach(cl => {
+            cl.removeClient(req.sessionID)
+        })
         req.session.destroy(() => { console.log("destroyed session") })
         return res.json({ error: false });
-
     }
     return res.json({ error: false, message: "Session not found" });
 }
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-    const { account } = req.session as any;
-
-    if (!account) {
-        console.log(`Middleware (${req.sessionID}): No session`)
-        return res.json({ error: true, message: "Session not found" });
-    }
-
-    const { email, password } = JSON.parse(account);
+    const { email, password } = req.session as any;
 
     if (!email || !password) {
         console.log(`Middleware (${req.sessionID}): No email/pass`)
         return res.json({ error: true, message: "Email/password not supplied" });
     }
 
-    const acc = await Account.findOne({ email: email, password: password });
+    const acc = await Account.exists({ email, password });
     if (!acc) {
         console.log(`Middleware (${req.sessionID}): User not found`)
         return res.json({ error: true, message: "User not found" });
     }
 
-    res.locals.name = acc.name
-
-    next()
+    return next()
 }
 
 //for debugging
-export const status = async (req: Request, res: Response) => {
+const status = async (req: Request, res: Response) => {
     const { account } = req.session as any;
 
     if (!account) {

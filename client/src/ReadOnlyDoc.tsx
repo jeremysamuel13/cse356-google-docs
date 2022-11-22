@@ -52,18 +52,45 @@ const ReadOnlyDoc = () => {
     const [clientID, setClientID] = useState('')
     const [ref, setRef] = useState<ReactQuill | null>(null)
     const doc = useRef(new Y.Doc())
+    const binding = useRef<QuillBinding>(null!!)
 
     const refCallback = useCallback((quill: ReactQuill) => {
         if (!quill) {
             return
         }
-        const editor = quill.getEditor()
-        new QuillBinding(doc.current.getText(), editor)
         setRef(quill)
     }, [])
 
+
     useEffect(() => {
         if (!ref) { return }
+
+        const eventSource = new EventSource(`/api/connect/${id}`)
+
+        const handleUpdate = (event: MessageEvent<any>) => {
+            console.debug("UPDATE")
+            console.debug(event)
+            const data = JSON.parse(event.data)
+            const update = toUint8Array(data.update)
+            Y.applyUpdate(doc.current, update)
+            Y.logUpdate(update)
+        }
+
+        const handlePresence = (event: MessageEvent<any>) => {
+            console.log("PRESENCE")
+            console.debug(event)
+            const { client_id, name, cursor } = JSON.parse(event.data)
+            const editor = ref.getEditor()
+            console.log({ editor, ref })
+            const cursors = editor?.getModule("cursors")
+            console.log("CURSORS FROM EDITOR")
+            console.log(cursors)
+            const randomColor = "#" + ((1 << 24) * Math.random() | 0).toString(16)
+
+            cursors.createCursor(client_id, name, randomColor)
+            cursors.moveCursor(client_id, cursor)
+            cursors.toggleFlag(client_id, true)
+        }
 
         const handleSync = (event: MessageEvent<any>) => {
             console.debug("SYNC")
@@ -71,47 +98,23 @@ const ReadOnlyDoc = () => {
             const data = JSON.parse(event.data)
             const update = toUint8Array(data.update)
             setClientID(data.client_id)
-            const text = doc.current.getText()
-            text.delete(0, text.length)
+
+            binding.current?.destroy()
+            doc.current = new Y.Doc()
             Y.applyUpdate(doc.current, update)
-        }
-
-        const handleUpdate = (event: MessageEvent<any>) => {
-            console.debug("UPDATE")
-            console.debug(event)
-            const data = JSON.parse(event.data)
-            if (data.client_id !== clientID) {
-                const update = toUint8Array(data.update)
-                Y.applyUpdate(doc.current, update)
-            }
-        }
-
-        const handlePresence = (event: MessageEvent<any>) => {
-            console.log("PRESENCE")
-            console.debug(event)
-            const { session_id, name, cursor } = JSON.parse(event.data)
             const editor = ref.getEditor()
-            console.log({ editor, ref })
-            const cursors = editor?.getModule("cursors")
-            console.log("CURSORS FROM EDITOR")
-            console.log(cursors)
-            const randomColor = "#" + ((1 << 24) * Math.random() | 0).toString(16)
-            cursors.createCursor(session_id, name, randomColor)
-            cursors.moveCursor(session_id, cursor)
-            cursors.toggleFlag(session_id, true)
-
+            binding.current = new QuillBinding(doc.current.getText(), editor)
+            console.log("DONE WITH SYNC")
         }
 
-        const eventSource = new EventSource(`/api/connect/${id}`)
-
-        eventSource.addEventListener('sync', handleSync)
-        eventSource.addEventListener('presence', handlePresence)
         eventSource.addEventListener('update', handleUpdate)
+        eventSource.addEventListener('presence', handlePresence)
+        eventSource.addEventListener('sync', handleSync)
 
         return () => {
-            eventSource.removeEventListener('update', handleUpdate)
-            eventSource.removeEventListener('sync', handleSync)
+            eventSource.removeEventListener('update', handleSync)
             eventSource.removeEventListener('presence', handlePresence)
+            eventSource.removeEventListener('sync', handlePresence)
             eventSource.close()
         }
     }, [ref])
@@ -133,3 +136,4 @@ const ReadOnlyDoc = () => {
 
 
 export default ReadOnlyDoc
+
