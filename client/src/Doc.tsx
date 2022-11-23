@@ -91,14 +91,6 @@ const Doc = () => {
         setRef(quill)
     }, [])
 
-    // useEffect(() => {
-    //     doc.current.on('update', onTextChange)
-
-    //     return () => {
-    //         doc.current.off('update', onTextChange)
-    //     }
-    // }, [onTextChange])
-
     useEffect(() => {
         if (!ref) { return }
 
@@ -111,25 +103,20 @@ const Doc = () => {
             doc.current._observers.delete('update')
             const update = toUint8Array(data.update)
             Y.applyUpdate(doc.current, update)
-            Y.logUpdate(update)
             doc.current.on('update', onTextChange(id, clientID))
-
         }
 
         const handlePresence = (event: MessageEvent<any>) => {
             console.log("PRESENCE")
             console.debug(event)
-            const { client_id, name, cursor } = JSON.parse(event.data)
+            const { session_id, name, cursor } = JSON.parse(event.data)
             const editor = ref.getEditor()
-            console.log({ editor, ref })
             const cursors = editor?.getModule("cursors")
-            console.log("CURSORS FROM EDITOR")
-            console.log(cursors)
             const randomColor = "#" + ((1 << 24) * Math.random() | 0).toString(16)
 
-            cursors.createCursor(client_id, name, randomColor)
-            cursors.moveCursor(client_id, cursor)
-            cursors.toggleFlag(client_id, true)
+            cursors.createCursor(session_id, name, randomColor)
+            cursors.moveCursor(session_id, cursor)
+            cursors.toggleFlag(session_id, cursor?.index && cursor?.length)
         }
 
         const handleSync = (event: MessageEvent<any>) => {
@@ -138,17 +125,13 @@ const Doc = () => {
             const data = JSON.parse(event.data)
             const update = toUint8Array(data.update)
             setClientID(data.client_id)
-
             doc.current._observers.delete('update')
-
             binding.current?.destroy()
             doc.current = new Y.Doc()
             Y.applyUpdate(doc.current, update)
             const editor = ref.getEditor()
             binding.current = new QuillBinding(doc.current.getText(), editor)
-
             doc.current.on('update', onTextChange(id, data.client_id))
-            console.log("DONE WITH SYNC")
         }
 
         eventSource.addEventListener('update', handleUpdate)
@@ -164,22 +147,9 @@ const Doc = () => {
     }, [ref])
 
 
-    const withoutObservation = (fn: any) => {
-        doc.current._observers.delete('update')
-        fn()
-        doc.current.on('update', onTextChange(id, clientID))
-    }
-
-
     const handleSelectionChange = async (cursor: Cursor) => {
-        await axios.post(`/api/presence/${id}`, { ...cursor, client_id: clientID })
+        await axios.post(`/api/presence/${id}`, cursor)
     }
-
-    // if (!clientID) {
-    //     return <>
-    //         Loading...
-    //     </>
-    // }
 
     return (
         <>

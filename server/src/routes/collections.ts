@@ -1,25 +1,20 @@
 import { Request, Response, Router } from 'express'
-import { ymongo } from '../index'
-import * as Y from "yjs";
 import { v4 as uuidv4 } from 'uuid'
 import { authMiddleware } from './users';
-import mongoose from 'mongoose'
+import { clients } from '..';
+import { Document } from '../interfaces';
 import { createDocument, deleteDocument } from '../db/elasticsearch';
 
 const router = Router()
 
-export const doesDocumentExist = async (document) => {
-    const documents: Array<string> = await ymongo.getAllDocNames()
-    const doc = documents.find((val) => val === document)
-    return !!doc
+export const doesDocumentExist = (id: string) => {
+    return !!clients[id]
 }
 
-export const doesDocumentNameExist = async (name) => {
-    const documents: Array<string> = await ymongo.getAllDocNames()
-    for (const e of documents) {
-        const metaVal = await ymongo.getMeta(e, 'name')
-        if (metaVal === name) {
-            return { exists: true, id: e }
+export const doesDocumentNameExist = (name: string) => {
+    for (const [id, doc] of Object.entries(clients)) {
+        if (doc.name === name) {
+            return { exists: true, id }
         }
     }
 
@@ -38,16 +33,18 @@ export const create = async (req: Request<CreateRequestPayload>, res: Response) 
         return res.json({ error: true, message: "Missing name" })
     }
 
-    const { exists, id: existingID } = await doesDocumentNameExist(name)
+    const { exists, id: existingID } = doesDocumentNameExist(name)
     if (exists) {
         return res.json({ error: true, message: "Document already exists", id: existingID })
     }
 
     const id = uuidv4()
 
-    const doc = await ymongo.getYDoc(id)
+    clients[id] = new Document(name, id)
 
-    await Promise.all([ymongo.getYDoc(id), ymongo.setMeta(id, 'name', name), ymongo.storeUpdate(id, Y.encodeStateAsUpdate(doc)), createDocument(id, doc, name)])
+    const doc = clients[id].doc
+
+    await createDocument(id, doc, name);
 
     return res.json({ error: false, id })
 }
@@ -63,11 +60,12 @@ export const deleteCollection = async (req: Request<DeleteRequestPayload>, res: 
         return res.json({ error: true, message: "Missing id" })
     }
 
-    if (!(await doesDocumentExist(id))) {
+    if (!(doesDocumentExist(id))) {
         return res.json({ error: true, message: "Document doesn't exists" })
     }
 
-    await Promise.all([ymongo.delMeta(id, 'name'), ymongo.clearDocument(id), deleteDocument(id)])
+    delete clients[id]
+    await deleteDocument(id)
 
     return res.json({ error: false });
 }
@@ -80,11 +78,11 @@ interface ListElement {
 type ListResponsePayload = ListElement[]
 
 export const list = async (req: Request, res: Response<ListResponsePayload>) => {
-    const { db } = mongoose.connection
-    const agg = await db.collection("docs").aggregate([{ $group: { _id: "$docName", date: { $max: { $toDate: "$_id" } } } }, { $sort: { date: -1 } }, { $limit: 10 }]).toArray()
-    const top10 = await Promise.all(agg.map(async doc => ({ id: doc._id, lastModified: doc.date, name: await ymongo.getMeta(doc._id, 'name') })))
+    // const { db } = mongoose.connection
+    // const agg = await db.collection("docs").aggregate([{ $group: { _id: "$docName", date: { $max: { $toDate: "$_id" } } } }, { $sort: { date: -1 } }, { $limit: 10 }]).toArray()
+    // const top10 = await Promise.all(agg.map(async doc => ({ id: doc._id, lastModified: doc.date, name: await ymongo.getMeta(doc._id, 'name') })))
 
-    return res.json(top10)
+    return res.json(Object.values(clients).sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime()).slice(0, 10))
 }
 
 router.use(authMiddleware)

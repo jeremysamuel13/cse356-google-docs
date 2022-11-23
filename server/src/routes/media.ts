@@ -1,5 +1,5 @@
 import { Request, Response, Router } from 'express'
-import fileUpload from 'express-fileupload'
+import multer from 'multer'
 import { authMiddleware } from './users';
 import { v4 as uuidv4 } from 'uuid'
 import { File } from '../db/file';
@@ -13,28 +13,38 @@ const extMap = {
     'image/gif': 'gif'
 }
 
-export const upload = async (req: Request, res: Response) => {
-    if (!req.files) {
-        return res.json({ error: true, message: "File not recieved" })
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, '/cse356-google-docs/server_uploads')
+    },
+    filename: (req, file, cb) => {
+        const mediaid = uuidv4()
+        const ext = extMap[file.mimetype]
+        cb(null, `${mediaid}.${ext}`)
+    }
+})
+
+const fileFilter = (req, file, cb) => {
+    cb(null, Object.keys(extMap).includes(file.mimetype))
+}
+
+const uploadFile = multer({
+    storage: storage,
+    fileFilter: fileFilter
+})
+
+export const upload = async (req, res: Response) => {
+    const starttime = performance.now()
+
+    if (!req.file) {
+        return res.json({ error: true, message: "Error uploading file" })
     }
 
-    const { file: image } = req.files as any
-    if (!Object.keys(extMap).includes(image.mimetype)) {
-        return res.json({ error: true, message: "Invalid MIME type. Only accepts .jpeg, .gif, and .png files" })
-    }
-
-    const mediaid = uuidv4()
-    const ext = extMap[image.mimetype]
-    const filepath = `/cse356-google-docs/server_uploads/${mediaid}.${ext}`
-
-    image.mv(filepath, async (err) => {
-        await File.create({ mimetype: image.mimetype, mediaid, filepath })
-        if (err) {
-            return res.json({ error: true, message: "Error uploading file" })
-        }
-
-        return res.json({ error: false, mediaid })
-    })
+    const image = req.file
+    const mediaid = image.filename.split('.')[0]
+    res.json({ error: false, mediaid })
+    await File.create({ mimetype: image.mimetype, mediaid, filepath: image.path })
+    console.log({ ...image, logstr: `Took ${performance.now() - starttime} upload` })
 }
 
 export const access = async (req: Request, res: Response) => {
@@ -51,17 +61,13 @@ export const access = async (req: Request, res: Response) => {
             return res.json({ error: true, message: "File not found" })
         } else {
             res.writeHead(200, { "Content-Type": file.mimetype });
-            res.end(data)
+            return res.end(data)
         }
     })
 }
 
 router.use(authMiddleware)
-router.post('/upload', fileUpload({
-    useTempFiles: true,
-    tempFileDir: '/tmp/',
-    debug: true
-}), upload)
+router.post('/upload', uploadFile.single("file"), upload)
 router.get('/access/:mediaid', access)
 
 export default router;

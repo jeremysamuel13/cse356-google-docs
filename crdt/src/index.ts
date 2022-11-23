@@ -28,7 +28,8 @@ exports.CRDT = class {
   update(update: string) {
     const data = JSON.parse(update)
     if (data.event === 'sync') {
-      this.text.delete(0, this.text.length)
+      this.document = new Doc()
+      this.text = this.document.getText()
     }
     applyUpdate(this.document, toUint8Array(data.update))
     const payload = { event: 'update', data: data.update }

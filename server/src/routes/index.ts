@@ -3,7 +3,6 @@ import { elastic_client } from '../index'
 import { ElasticDoc, INDEX } from '../db/elasticsearch'
 import { authMiddleware } from './users';
 
-
 const router = Router()
 
 export const search = async (req: Request, res: Response) => {
@@ -75,12 +74,23 @@ export const suggest = async (req: Request, res: Response) => {
                 ]
             }
         },
-        size: 10
+        highlight: {
+            boundary_scanner: "word",
+            fields: {
+                contents: {},
+                name: {}
+            },
+            pre_tags: [""],
+            post_tags: [""]
+        },
+        size: 10,
+        _source: false
     })
 
     console.log(search_results)
+    const mapped = [...new Set(search_results.hits.hits.flatMap(h => [...(h.highlight?.name ?? []), ...(h.highlight?.contents ?? [])].map(word => word.toLowerCase())))]
 
-    return res.json([`${q}is`, `${q}as`, `${q}een`, `${q}art`])
+    return res.json(mapped)
 }
 
 router.use(authMiddleware)

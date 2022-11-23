@@ -1,8 +1,8 @@
-import { elastic_client, ymongo } from "../index";
+import { clients, elastic_client } from "../index";
 import { QuillDeltaToHtmlConverter } from 'quill-delta-to-html';
 import { Doc } from "yjs";
 
-const FLUSH_INTERVAL = 1000;
+const FLUSH_INTERVAL = 1500;
 export const INDEX = 'cse356-m3';
 
 export interface ElasticDoc {
@@ -34,19 +34,19 @@ class ElasticQueue {
         } else {
             const keys = Array.from(this.queue.keys())
             this.queue.clear()
-            const operations = (await Promise.all(keys.map(async id => [{ update: { _id: id } }, { doc: await this.getBulkReq(id) }]))).flat()
+            const operations = (keys.map(id => [{ update: { _id: id } }, { doc: this.getBulkReq(id) }])).flat()
             await elastic_client.bulk<ElasticDoc, UpdateElasticDoc>({
                 index: INDEX,
                 operations,
                 refresh: true
             })
             // await refresh()
-            console.log("Queue flushed")
+            // console.log("Queue flushed")
         }
     }
 
-    async getBulkReq(id: string) {
-        const doc = await ymongo.getYDoc(id);
+    getBulkReq(id: string) {
+        const doc = clients[id].doc
         //console.log(`Flushed from queue: ${id}`)
         return {
             contents: toHTML(doc)
@@ -119,7 +119,7 @@ export const createIndicies = async (del: boolean) => {
 }
 
 // export const refresh = async () => {
-//     //console.log("Refreshing index")
+//     console.log("Refreshing index")
 //     return await elastic_client.indices.refresh({ index: INDEX })
 // }
 
@@ -130,8 +130,7 @@ export const createDocument = async (id: string, document: Doc, name: string) =>
         document: {
             contents: toHTML(document),
             name
-        },
-        refresh: true
+        }
     })
     // await refresh()
     return res
@@ -141,8 +140,7 @@ export const deleteDocument = async (id: string) => {
     try {
         const res = await elastic_client.delete({
             id,
-            index: INDEX,
-            refresh: true
+            index: INDEX
         })
         // await refresh()
         return res
@@ -151,7 +149,7 @@ export const deleteDocument = async (id: string) => {
     }
 }
 
-export const updateDocument = async (id: string) => {
+export const updateDocument = (id: string) => {
     elastic_queue.queueUpdate(id)
 }
 

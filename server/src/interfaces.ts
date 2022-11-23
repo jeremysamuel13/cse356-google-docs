@@ -1,6 +1,6 @@
 import SSE from "express-sse-ts";
 import { applyUpdate, Doc } from "yjs";
-import { ymongo } from "./index";
+import { updateDocument } from "./db/elasticsearch";
 export enum EventType {
     Sync = "sync",
     Update = "update",
@@ -8,7 +8,7 @@ export enum EventType {
 }
 
 export interface Clients {
-    [key: string]: ClientManager
+    [key: string]: Document
 }
 
 
@@ -94,7 +94,7 @@ export class ClientManager {
 
     //get all cursors
     getCursors() {
-        return Array.from(this.clients.values()).map(c => ({ client_id: c.client_id, name: c.name, cursor: c.cursor }))
+        return Array.from(this.clients.values()).map(c => ({ session_id: c.client_id, name: c.name, cursor: c.cursor }))
     }
 
     //get client by client_id
@@ -111,13 +111,36 @@ export class ClientManager {
     async emitPresence(c: Client) {
         //console.log(c)
         //console.log(c.session_id)
-        const payload = { client_id: c.client_id, name: c.name, cursor: c.cursor }
+        const payload = { session_id: c.client_id, name: c.name, cursor: c.cursor }
         await this.sendToAll(JSON.stringify(payload), EventType.Presence)
         //console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
     }
 
     async receivePresence(client_id: string) {
         await Promise.all(this.getCursors().map(async (cursor) => await this.sendTo(client_id, JSON.stringify(cursor), EventType.Presence)))
+    }
+}
+
+export class Document {
+    name: string
+    id: string
+    doc: Doc
+    clients: ClientManager
+    lastModified: Date
+
+    constructor(name: string, id: string) {
+        this.name = name
+        this.id = id
+        this.doc = new Doc()
+        this.clients = new ClientManager()
+        this.lastModified = new Date()
+    }
+
+    updateDocument(update: Uint8Array) {
+        applyUpdate(this.doc, update)
+        this.lastModified = new Date()
+        updateDocument(this.id)
+
     }
 }
 

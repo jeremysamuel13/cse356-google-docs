@@ -37,10 +37,11 @@ const signup = async (req: Request<SignUpPayload>, res: Response) => {
 
     const verificationKey = uuidv4();
 
-
     await putUser(name, email, password, verificationKey)
 
     const verificationLink = `http://mahirjeremy.cse356.compas.cs.stonybrook.edu/users/verify?email=${encodeURIComponent(email)}&key=${verificationKey}`
+
+    res.json({ error: false })
 
     await transport.sendMail({
         from: 'root@mahirjeremy.cse356.compas.cs.stonybrook.edu',
@@ -48,8 +49,6 @@ const signup = async (req: Request<SignUpPayload>, res: Response) => {
         subject: 'Verify account for CSE 356 website',
         text: verificationLink
     })
-
-    return res.json({ error: false })
 }
 
 const verify = async (req: Request, res: Response) => {
@@ -125,11 +124,12 @@ const login = async (req: Request<LoginPayload>, res: Response) => {
 
 const logout = async (req: Request, res: Response) => {
     if (req.session.email || req.session.password || req.session.id) {
-        Object.values(clients).forEach(cl => {
-            cl.removeClient(req.sessionID)
-        })
         req.session.destroy(() => { console.log("destroyed session") })
-        return res.json({ error: false });
+        res.json({ error: false });
+        await Promise.all(Object.values(clients).map(async (cl) => {
+            await cl.clients.removeClient(req.sessionID)
+        }))
+        return
     }
     return res.json({ error: false, message: "Session not found" });
 }
@@ -148,38 +148,12 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         return res.json({ error: true, message: "User not found" });
     }
 
-    return next()
-}
-
-//for debugging
-const status = async (req: Request, res: Response) => {
-    const { account } = req.session as any;
-
-    if (!account) {
-        console.log(`Middleware (${req.sessionID}): No session`)
-        return res.json({ error: true, message: "Session not found" });
-    }
-
-    const { email, password } = JSON.parse(account);
-
-    if (!email || !password) {
-        console.log(`Middleware (${req.sessionID}): No email/pass`)
-        return res.json({ error: true, message: "Email/password not supplied" });
-    }
-
-    const acc = await Account.findOne({ email: email, password: password });
-    if (!acc) {
-        console.log(`Middleware (${req.sessionID}): User not found`)
-        return res.json({ error: true, message: "User not found" });
-    }
-
-    return res.json({ error: false, message: "Session is valid" })
+    next()
 }
 
 router.post('/signup', signup)
 router.post('/login', login)
 router.post('/logout', logout)
 router.get('/verify', verify)
-router.get('/status', status)
 
 export default router;

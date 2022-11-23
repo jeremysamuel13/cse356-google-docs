@@ -1,12 +1,11 @@
 import { Request, Response, NextFunction, Router } from 'express';
-import { ymongo, clients } from '../index'
+import { clients } from '../index'
 import SSE from "express-sse-ts";
-import { EventType, ClientManager, Event } from '../interfaces'
+import { EventType, Event } from '../interfaces'
 import * as Y from "yjs";
 import { toUint8Array, fromUint8Array } from 'js-base64';
 import { doesDocumentExist } from './collections';
 import { authMiddleware } from './users';
-import { updateDocument } from '../db/elasticsearch';
 
 const router = Router()
 
@@ -25,20 +24,17 @@ export const connect = async (req: Request, res: Response, next: NextFunction) =
 
     res.setHeader("X-Accel-Buffering", "no")
 
-    const exists = clients[id]?.getClient(client_id)
+    const exists = clients[id].clients.getClient(client_id)
     let sse: SSE;
     if (exists) {
         sse = exists.res
     } else {
         sse = new SSE()
-        if (!clients[id]) {
-            clients[id] = new ClientManager()
-        }
-        clients[id].addClient(sse, client_id, req.session.name!)
+        clients[id].clients.addClient(sse, client_id, req.session.name!)
     }
 
     // find document or create it
-    const document: Y.Doc = await ymongo.getYDoc(id)
+    const document: Y.Doc = clients[id].doc
     sse.init(req, res, next)
 
     console.log(`Started connection with room: ${id}`)
@@ -47,14 +43,14 @@ export const connect = async (req: Request, res: Response, next: NextFunction) =
     const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
     console.log(`${client_id}: Syncing`)
 
-    await Promise.all([clients[id].sendTo(client_id, JSON.stringify(payload), EventType.Sync), clients[id].receivePresence(client_id)])
+    await Promise.all([clients[id].clients.sendTo(client_id, JSON.stringify(payload), EventType.Sync), clients[id].clients.receivePresence(client_id)])
 
     req.on("close", async () => {
-        await clients[id].removeClient(client_id)
+        await clients[id].clients.removeClient(client_id)
         res.end()
     })
     req.on("finish", async () => {
-        await clients[id].removeClient(client_id)
+        await clients[id].clients.removeClient(client_id)
         res.end()
     })
     console.log("Connect success")
@@ -84,9 +80,9 @@ export const op = async (req: Request<Event>, res: Response) => {
     //console.log(`${body.client_id}: Sent update`)
     const update = toUint8Array(body.data)
     const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
-    const promises = [ymongo.storeUpdate(id, update), updateDocument(id), clients[id].sendToAll(JSON.stringify(payload), EventType.Update)]
+    clients[id].updateDocument(update)
     //console.log("Update success")
-    return await Promise.all(promises)
+    await clients[id].clients.sendToAll(JSON.stringify(payload), EventType.Update)
 
 }
 
@@ -99,17 +95,17 @@ export const presence = async (req: Request, res: Response) => {
     const { id } = req.params as any
     const { index, length } = req.body;
 
-    const c = clients[id].getClient(req.sessionID)
+    const c = clients[id].clients.getClient(req.sessionID)
 
     if (!c) {
         return res.json({ error: true, message: "Client session not found" })
     }
 
     c.setCursor(index, length)
-    await clients[id].emitPresence(c)
+    await clients[id].clients.emitPresence(c)
     console.log(`${c.client_id}: Sent presence`)
 
-    console.log("Presence success")
+    // console.log("Presence success")
 
     return res.json({ error: false })
 }
