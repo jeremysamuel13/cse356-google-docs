@@ -38,7 +38,7 @@ export class Client {
 
     send(data: string, event: EventType) {
         return new Promise<void>((resolve, reject) => {
-            let str = `event: ${event}\ndata: ${data}\n\n`
+            let str = `event: ${event}\ndata: ${data}\n id: ${this.client_id}\n\n`
             this.res.write(str, (err) => {
                 if (err) {
                     return reject(err)

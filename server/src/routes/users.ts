@@ -106,7 +106,7 @@ const login = async (req: Request<LoginPayload>, res: Response) => {
         req.session.password = password
         req.session.name = user.name
 
-        console.log(`Login: set session: ${req.sessionID}`)
+        //console.log(`Login: set session: ${req.sessionID}`)
 
         return res.json({ error: false, name: user.name })
     } else {
