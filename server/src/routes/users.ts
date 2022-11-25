@@ -41,21 +41,18 @@ const signup = async (req: Request<SignUpPayload>, res: Response) => {
 
     const verificationLink = `http://mahirjeremy.cse356.compas.cs.stonybrook.edu/users/verify?email=${encodeURIComponent(email)}&key=${verificationKey}`
 
-    res.json({ error: false })
-
     await transport.sendMail({
         from: 'root@mahirjeremy.cse356.compas.cs.stonybrook.edu',
         to: email,
         subject: 'Verify account for CSE 356 website',
         text: verificationLink
     })
+
+    return res.json({ error: false })
 }
 
 const verify = async (req: Request, res: Response) => {
     const { email, key } = req.query;
-
-    console.log({ email })
-
 
     if (!email) {
         return res.json({ error: true, message: "Email not found" })
@@ -89,8 +86,6 @@ interface LoginPayload {
 const login = async (req: Request<LoginPayload>, res: Response) => {
     const { email, password } = req.body
 
-    console.log({ email })
-
     if (!email || !password) {
         console.log(`Login: Name/pass not found`)
         return res.json({ error: true, message: "name/password not found" })
@@ -123,15 +118,20 @@ const login = async (req: Request<LoginPayload>, res: Response) => {
 }
 
 const logout = async (req: Request, res: Response) => {
-    if (req.session.email || req.session.password || req.session.id) {
-        req.session.destroy(() => { console.log("destroyed session") })
-        res.json({ error: false });
-        await Promise.all(Object.values(clients).map(async (cl) => {
-            await cl.clients.removeClient(req.sessionID)
-        }))
-        return
-    }
-    return res.json({ error: false, message: "Session not found" });
+    const client_id = req.session.id
+    req.session.destroy((err) => {
+        if (err) {
+            return res.json({ error: true, message: "Session not found" });
+        } else {
+            console.log("Destroyed session")
+        }
+    })
+
+    await Promise.all(Object.values(clients).map(async (cl) => {
+        await cl.clients.removeClient(client_id)
+    }))
+
+    return res.json({ error: false });
 }
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {

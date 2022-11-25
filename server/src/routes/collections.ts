@@ -33,9 +33,9 @@ export const create = async (req: Request<CreateRequestPayload>, res: Response) 
         return res.json({ error: true, message: "Missing name" })
     }
 
-    const { exists, id: existingID } = doesDocumentNameExist(name)
+    const { exists } = doesDocumentNameExist(name)
     if (exists) {
-        return res.json({ error: true, message: "Document already exists", id: existingID })
+        return res.json({ error: true, message: "Document name already exists" })
     }
 
     const id = uuidv4()

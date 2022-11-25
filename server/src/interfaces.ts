@@ -1,5 +1,5 @@
 import { Response } from 'express'
-import { applyUpdate, Doc } from "yjs";
+import * as Y from "yjs";
 import { updateDocument } from "./db/elasticsearch";
 export enum EventType {
     Sync = "sync",
@@ -18,10 +18,10 @@ export interface Event {
     client_id: string
 }
 
-export interface Cursor {
-    index?: number
-    length?: number
-}
+export type Cursor = {
+    index: number
+    length: number
+} | {}
 
 export class Client {
     client_id: string;
@@ -39,10 +39,13 @@ export class Client {
     send(data: string, event: EventType) {
         return new Promise<void>((resolve, reject) => {
             let str = `event: ${event}\ndata: ${data}\n\n`
-
-            this.res.write(str)
-            //console.log(`${this.client_id}: Data was sent (excluded: ${exclude})`)
-            return resolve()
+            this.res.write(str, (err) => {
+                if (err) {
+                    return reject()
+                } else {
+                    return resolve()
+                }
+            })
         })
     }
 
@@ -79,17 +82,14 @@ export class ClientManager {
     }
 
     //remove client
-    async removeClient(client_id: string, f?: any) {
+    async removeClient(client_id: string) {
         const client = this.clients.get(client_id)
         if (client) {
             client.clearCursor()
             await this.emitPresence(client)
-            client.res.end()
             this.clients.delete(client_id)
-        }
-        console.log(`${client_id}: Disconnected (hide cursor)`)
-        if (f) {
-            f()
+        } else {
+            console.error(`ATTEMPTED TO REMOVE CLIENT (${client_id}), could not find!`)
         }
     }
 
@@ -102,11 +102,6 @@ export class ClientManager {
     getClient(client_id: string) {
         return this.clients.get(client_id)
     }
-
-    //get clients by session_id
-    // getClientsBySession(session_id: string) {
-    //     return Array.from(this.clients.values()).filter(c => c.session_id === session_id)
-    // }
 
     //emit presence to all other clients
     async emitPresence(c: Client) {
@@ -125,20 +120,20 @@ export class ClientManager {
 export class Document {
     name: string
     id: string
-    doc: Doc
+    doc: Y.Doc
     clients: ClientManager
     lastModified: Date
 
     constructor(name: string, id: string) {
         this.name = name
         this.id = id
-        this.doc = new Doc()
+        this.doc = new Y.Doc()
         this.clients = new ClientManager()
         this.lastModified = new Date()
     }
 
     updateDocument(update: Uint8Array) {
-        applyUpdate(this.doc, update)
+        Y.applyUpdate(this.doc, update)
         this.lastModified = new Date()
         updateDocument(this.id)
     }

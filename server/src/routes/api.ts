@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction, Router } from 'express';
 import { clients } from '../index'
-import SSE from "express-sse";
 import { EventType, Event } from '../interfaces'
 import * as Y from "yjs";
 import { toUint8Array, fromUint8Array } from 'js-base64';
@@ -35,17 +34,18 @@ export const connect = async (req: Request, res: Response, next: NextFunction) =
 
 
     // find document or create it
-    const document: Y.Doc = clients[id].doc
+    const doc = clients[id]
 
     console.log(`Started connection with room: ${id}`)
 
-    const update = Y.encodeStateAsUpdate(document);
+    const update = Y.encodeStateAsUpdate(doc.doc);
     const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
     console.log(`${client_id}: Syncing`)
 
-    await Promise.all([clients[id].clients.sendTo(client_id, JSON.stringify(payload), EventType.Sync), clients[id].clients.receivePresence(client_id)])
 
-    res.on("close", async () => await clients[id].clients.removeClient(client_id))
+    await Promise.all([doc.clients.sendTo(client_id, JSON.stringify(payload), EventType.Sync), doc.clients.receivePresence(client_id)])
+
+    res.on("close", async () => await doc.clients.removeClient(client_id))
     console.log("Connect success")
 }
 
@@ -65,16 +65,17 @@ export const op = async (req: Request<Event>, res: Response) => {
         return res.json({ error: true, message: "Missing id" })
     }
 
-    res.send({})
-
     const body: Event = req.body
+
+    const doc = clients[id]
 
     //console.log(`${body.client_id}: Sent update`)
     const update = toUint8Array(body.data)
     const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
-    clients[id].updateDocument(update)
+    doc.updateDocument(update)
     //console.log("Update success")
-    await clients[id].clients.sendToAll(JSON.stringify(payload), EventType.Update)
+    await doc.clients.sendToAll(JSON.stringify(payload), EventType.Update)
+    return res.json({ error: false })
 
 }
 
@@ -87,17 +88,17 @@ export const presence = async (req: Request, res: Response) => {
     const { id } = req.params as any
     const { index, length } = req.body;
 
-    const c = clients[id].clients.getClient(req.sessionID)
+    const doc = clients[id]
+
+    const c = doc.clients.getClient(req.sessionID)
 
     if (!c) {
+        console.error(`ATTEMPTED TO SEND PRESENCE OF NON-EXISTENT CLIENT: ${req.sessionID}`)
         return res.json({ error: true, message: "Client session not found" })
     }
 
     c.setCursor(index, length)
-    await clients[id].clients.emitPresence(c)
-    console.log(`${c.client_id}: Sent presence`)
-
-    // console.log("Presence success")
+    await doc.clients.emitPresence(c)
 
     return res.json({ error: false })
 }

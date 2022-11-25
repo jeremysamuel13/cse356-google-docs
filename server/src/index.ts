@@ -1,9 +1,6 @@
-import fs from 'fs'
-
 import dotenv from 'dotenv';
 
 import express, { Express } from 'express';
-import cors from 'cors';
 import session from 'express-session'
 import morgan from 'morgan'
 
@@ -27,18 +24,12 @@ const promises: Promise<any>[] = []
 // Allow for interaction with dotenv
 dotenv.config();
 
-const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY, ELASTICSEARCH_PASS, DELETE } = process.env;
+const { PORT, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY, DELETE } = process.env;
 
 const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authSource=admin`
 console.log(mongostr)
 
 export const clients = {} as Clients
-
-//MONGO + YJS
-// export const ymongo = new MongodbPersistence(mongostr, {
-//     collectionName: COLLECTION,
-//     flushSize: 50
-// });
 
 mongoConnect(mongostr, (val) => console.log(val ?? "connected to docs db"));
 
@@ -48,6 +39,13 @@ export const elastic_client = new ElasticClient({
 })
 
 promises.push(createIndicies(DELETE === "true"))
+
+//mail 
+export const transport = createTransport({
+    sendmail: true,
+    path: '/usr/sbin/sendmail',
+    newline: 'unix'
+})
 
 // EXPRESS
 const app: Express = express();
@@ -69,37 +67,18 @@ const app: Express = express();
 // }, { stream: fs.createWriteStream('./access.log', { flags: 'a' }) }))
 
 
-//mail 
-export const transport = createTransport({
-    sendmail: true,
-    path: '/usr/sbin/sendmail',
-    newline: 'unix'
-})
-
-app.set('trust proxy', 1)
-app.use(cors({ credentials: true }));
 
 // JSON Middleware
-app.use(express.json({ limit: '50mb' }))
-// app.use(express.urlencoded({ extended: true }));
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }));
 
-// app.use((req, res, next) => {
-//     console.log(req.body)
-//     next()
-// })
 
 //Cookie-based sessions
 app.use(session({
-    // name: 'mahirjeremy-connect.sid',
     resave: false,
     saveUninitialized: false,
-    secret: SECRET_KEY,
-    // httpOnly: false,
-    // proxy: true,
-    // cookie: {
-    //     domain: "mahirjeremy.cse356.compas.cs.stonybrook.edu"
-    // }
-} as any))
+    secret: SECRET_KEY as string,
+}))
 
 //routes
 app.use('/users', users)
@@ -108,68 +87,68 @@ app.use('/media', media)
 app.use('/api', api);
 app.use('/index', index);
 
-app.get('/server/logs', async (req, res) => {
-    const allFileContents = fs.readFileSync('./access.log', 'utf-8');
+// app.get('/server/logs', async (req, res) => {
+//     const allFileContents = fs.readFileSync('./access.log', 'utf-8');
 
-    const logMap = new Map<String, { logs: any[] }>();
+//     const logMap = new Map<String, { logs: any[] }>();
 
-    allFileContents.split(/\r?\n/).forEach(line => {
-        try {
-            const data = JSON.parse(line)
-            const [_, first, second] = data.url.split('/') as string[]
-            let key = ''
-            if (first) { key = key + `/${first}` }
-            if (first !== "edit" && second) {
-                key = key + `/${second.split("?")[0]}`
-            }
-            if (!logMap.get(key)) { logMap.set(key, { logs: [] }) }
-            logMap.get(key)!.logs.push(data)
-        } catch {
+//     allFileContents.split(/\r?\n/).forEach(line => {
+//         try {
+//             const data = JSON.parse(line)
+//             const [_, first, second] = data.url.split('/') as string[]
+//             let key = ''
+//             if (first) { key = key + `/${first}` }
+//             if (first !== "edit" && second) {
+//                 key = key + `/${second.split("?")[0]}`
+//             }
+//             if (!logMap.get(key)) { logMap.set(key, { logs: [] }) }
+//             logMap.get(key)!.logs.push(data)
+//         } catch {
 
-        }
-    });
+//         }
+//     });
 
-    return res.json([...logMap.entries()].map(([key, { logs }]) => {
-        let times: number[] = []
-        let total = 0
-        let errors = 0
-
-
-        logs.forEach(log => {
-            const response_time = parseFloat(log.response_time)
-
-            if (parseInt(log.status_code) >= 400) {
-                errors = errors + 1
-            }
-
-            total = total + response_time
-            times.push(response_time)
-        })
-
-        times.sort((a, b) => b - a)
+//     return res.json([...logMap.entries()].map(([key, { logs }]) => {
+//         let times: number[] = []
+//         let total = 0
+//         let errors = 0
 
 
-        return {
-            key, max: times[0], min: times[times.length - 1], requests: logs.length, total_time: total, average: total / logs.length, errors, times: times.slice(0, 10)
-        }
-    }).sort((a, b) => b.max - a.max))
-})
+//         logs.forEach(log => {
+//             const response_time = parseFloat(log.response_time)
+
+//             if (parseInt(log.status_code) >= 400) {
+//                 errors = errors + 1
+//             }
+
+//             total = total + response_time
+//             times.push(response_time)
+//         })
+
+//         times.sort((a, b) => b - a)
+
+
+//         return {
+//             key, max: times[0], min: times[times.length - 1], requests: logs.length, total_time: total, average: total / logs.length, errors, times: times.slice(0, 10)
+//         }
+//     }).sort((a, b) => b.max - a.max))
+// })
 
 //static routes: no auth needed
-// app.get('/library/crdt.js', express.static("/cse356-google-docs/crdt/dist"), (req, res) => {
-//     return res.sendFile('/cse356-google-docs/crdt/dist/crdt.js')
-// })
-// app.get('/library.crdt.js', express.static("/cse356-google-docs/crdt/dist"), (req, res) => {
-//     return res.sendFile('/cse356-google-docs/crdt/dist/crdt.js')
-// })
+app.get('/library/crdt.js', express.static("/cse356-google-docs/crdt/dist"), (req, res) => {
+    return res.sendFile('/cse356-google-docs/crdt/dist/crdt.js')
+})
+app.get('/library.crdt.js', express.static("/cse356-google-docs/crdt/dist"), (req, res) => {
+    return res.sendFile('/cse356-google-docs/crdt/dist/crdt.js')
+})
 
-// app.get('/*', express.static("/cse356-google-docs/client/build", {
-//     setHeaders: (res, path) => {
-//         res.set('X-CSE356', '63094ca6047a1139b66d985a')
-//     }
-// }), (req, res) => {
-//     return res.sendFile('/cse356-google-docs/client/build/index.html')
-// })
+app.get('/*', express.static("/cse356-google-docs/client/build"), (req, res) => {
+    if (!res.headersSent) {
+        res.setHeader('X-CSE356', '63094ca6047a1139b66d985a')
+    }
+
+    return res.sendFile('/cse356-google-docs/client/build/index.html')
+})
 
 //only start server once all promises are resolved
 Promise.all(promises).then(() => {

@@ -34,17 +34,14 @@ const uploadFile = multer({
 })
 
 export const upload = async (req, res: Response) => {
-    const starttime = performance.now()
-
     if (!req.file) {
         return res.json({ error: true, message: "Error uploading file" })
     }
 
     const image = req.file
     const mediaid = image.filename.split('.')[0]
-    res.json({ error: false, mediaid })
     await File.create({ mimetype: image.mimetype, mediaid, filepath: image.path })
-    console.log({ ...image, logstr: `Took ${performance.now() - starttime} upload` })
+    return res.json({ error: false, mediaid })
 }
 
 export const access = async (req: Request, res: Response) => {
