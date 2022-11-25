@@ -1,7 +1,7 @@
 import { clients, elastic_client } from "../index";
 import * as Y from "yjs";
 
-const FLUSH_INTERVAL = 1500;
+const FLUSH_INTERVAL = 750;
 export const INDEX = 'cse356-m3';
 
 export interface ElasticDoc {
@@ -33,8 +33,8 @@ class ElasticQueue {
         } else {
             const keys = Array.from(this.queue.keys())
             this.queue.clear()
-            const operations = (keys.map(id => [{ index: { _id: id } }, { doc: this.getBulkReq(id) }])).flat()
-            await elastic_client.bulk<ElasticDoc, UpdateElasticDoc>({
+            const operations = (keys.map(id => [{ update: { _id: id } }, { doc: this.getBulkReq(id) }])).flat()
+            const res = await elastic_client.bulk<ElasticDoc, UpdateElasticDoc>({
                 index: INDEX,
                 operations
             })

@@ -21,32 +21,30 @@ export const connect = async (req: Request, res: Response, next: NextFunction) =
         return res.json({ error: true, message: "Document does not exist" })
     }
 
-    res.setHeader("X-Accel-Buffering", "no")
 
     const headers = {
         'Content-Type': 'text/event-stream',
         'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        "X-Accel-Buffering": "no"
     };
-    res.writeHead(200, headers);
+    res.set(headers)
+    res.flushHeaders();
 
     clients[id].clients.addClient(res, client_id, req.session.name!)
 
 
     // find document or create it
     const doc = clients[id]
-
-    console.log(`Started connection with room: ${id}`)
-
     const update = Y.encodeStateAsUpdate(doc.doc);
     const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
-    console.log(`${client_id}: Syncing`)
-
 
     await Promise.all([doc.clients.sendTo(client_id, JSON.stringify(payload), EventType.Sync), doc.clients.receivePresence(client_id)])
 
-    res.on("close", async () => await doc.clients.removeClient(client_id))
-    console.log("Connect success")
+    res.on("close", async () => {
+        await doc.clients.removeClient(client_id)
+    })
+
 }
 
 export const op = async (req: Request<Event>, res: Response) => {

@@ -41,7 +41,7 @@ export class Client {
             let str = `event: ${event}\ndata: ${data}\n\n`
             this.res.write(str, (err) => {
                 if (err) {
-                    return reject()
+                    return reject(err)
                 } else {
                     return resolve()
                 }
@@ -73,12 +73,12 @@ export class ClientManager {
 
     //send to all clients
     async sendToAll(data: string, event: EventType) {
-        await Promise.all(Array.from(this.clients.values()).map(async (c: Client) => await c.send(data, event)))
+        await Promise.all(Array.from(this.clients.values()).map((c: Client) => c.send(data, event)))
     }
 
     //send to one client
     async sendTo(client_id: string, data: string, event: EventType) {
-        await this.getClient(client_id)?.send(data, event)
+        return this.getClient(client_id)?.send(data, event)
     }
 
     //remove client
@@ -86,10 +86,8 @@ export class ClientManager {
         const client = this.clients.get(client_id)
         if (client) {
             client.clearCursor()
-            await this.emitPresence(client)
             this.clients.delete(client_id)
-        } else {
-            console.error(`ATTEMPTED TO REMOVE CLIENT (${client_id}), could not find!`)
+            await this.emitPresence(client)
         }
     }
 

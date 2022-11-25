@@ -33,8 +33,10 @@ exports.CRDT = class {
     }
     Y.applyUpdate(this.document, toUint8Array(data.update))
 
-    const payload = { event: data.event, data: data.update, meta: "FROM CRDT CB" }
-    this.cb(JSON.stringify(payload), false)
+    if (data.event !== 'sync') {
+      const payload = { event: data.event, data: data.update, meta: "FROM CRDT CB" }
+      this.cb(JSON.stringify(payload), false)
+    }
   }
 
   insert(index: number, content: string, format: CRDTFormat) {

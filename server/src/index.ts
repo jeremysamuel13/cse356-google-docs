@@ -135,20 +135,20 @@ app.use('/index', index);
 // })
 
 //static routes: no auth needed
-app.get('/library/crdt.js', express.static("/cse356-google-docs/crdt/dist"), (req, res) => {
-    return res.sendFile('/cse356-google-docs/crdt/dist/crdt.js')
-})
-app.get('/library.crdt.js', express.static("/cse356-google-docs/crdt/dist"), (req, res) => {
-    return res.sendFile('/cse356-google-docs/crdt/dist/crdt.js')
-})
+// app.get('/library/crdt.js', express.static("/cse356-google-docs/crdt/dist"), (req, res) => {
+//     return res.sendFile('/cse356-google-docs/crdt/dist/crdt.js')
+// })
+// app.get('/library.crdt.js', express.static("/cse356-google-docs/crdt/dist"), (req, res) => {
+//     return res.sendFile('/cse356-google-docs/crdt/dist/crdt.js')
+// })
 
-app.get('/*', express.static("/cse356-google-docs/client/build"), (req, res) => {
-    if (!res.headersSent) {
-        res.setHeader('X-CSE356', '63094ca6047a1139b66d985a')
-    }
+// app.get('/*', express.static("/cse356-google-docs/client/build"), (req, res) => {
+//     if (!res.headersSent) {
+//         res.setHeader('X-CSE356', '63094ca6047a1139b66d985a')
+//     }
 
-    return res.sendFile('/cse356-google-docs/client/build/index.html')
-})
+//     return res.sendFile('/cse356-google-docs/client/build/index.html')
+// })
 
 //only start server once all promises are resolved
 Promise.all(promises).then(() => {

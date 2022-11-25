@@ -38,11 +38,9 @@ export const search = async (req: Request, res: Response) => {
         if (val.highlight?.contents) {
             return { ...base, snippet: val.highlight?.contents[0] }
         }
-
-        return { snippet: null }
     })
 
-    console.log({ q, mapped, type: "SEARCH" })
+    // console.log({ q, mapped, type: "SEARCH" })
 
     return res.json(mapped)
 }
@@ -87,7 +85,7 @@ export const suggest = async (req: Request, res: Response) => {
 
     const mapped = [...new Set(search_results.hits.hits.flatMap(h => [...(h.highlight?.name ?? []), ...(h.highlight?.contents ?? [])].map(word => word.toLowerCase())))]
 
-    console.log({ q, mapped, type: "SUGGEST" })
+    // console.log({ q, mapped, type: "SUGGEST" })
 
     return res.json(mapped)
 }

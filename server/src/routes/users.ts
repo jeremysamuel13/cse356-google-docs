@@ -21,8 +21,6 @@ declare module 'express-session' {
 const signup = async (req: Request<SignUpPayload>, res: Response) => {
     const { email, name, password } = req.body
 
-    console.log({ email })
-
 
     if (!email || !name || !password) {
         return res.json({ error: true, message: "name/email/password not found" })
@@ -117,21 +115,15 @@ const login = async (req: Request<LoginPayload>, res: Response) => {
     }
 }
 
-const logout = async (req: Request, res: Response) => {
-    const client_id = req.session.id
+const logout = (req: Request, res: Response) => {
     req.session.destroy((err) => {
         if (err) {
-            return res.json({ error: true, message: "Session not found" });
+            throw err
         } else {
             console.log("Destroyed session")
+            return res.redirect('/')
         }
     })
-
-    await Promise.all(Object.values(clients).map(async (cl) => {
-        await cl.clients.removeClient(client_id)
-    }))
-
-    return res.json({ error: false });
 }
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {

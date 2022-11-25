@@ -11,16 +11,6 @@ export const doesDocumentExist = (id: string) => {
     return !!clients[id]
 }
 
-export const doesDocumentNameExist = (name: string) => {
-    for (const [id, doc] of Object.entries(clients)) {
-        if (doc.name === name) {
-            return { exists: true, id }
-        }
-    }
-
-    return { exists: false }
-}
-
 
 interface CreateRequestPayload {
     name: string
@@ -32,18 +22,9 @@ export const create = async (req: Request<CreateRequestPayload>, res: Response) 
     if (!name) {
         return res.json({ error: true, message: "Missing name" })
     }
-
-    const { exists } = doesDocumentNameExist(name)
-    if (exists) {
-        return res.json({ error: true, message: "Document name already exists" })
-    }
-
     const id = uuidv4()
-
     clients[id] = new Document(name, id)
-
     const doc = clients[id].doc
-
     await createDocument(id, doc, name);
 
     return res.json({ error: false, id })
@@ -58,10 +39,6 @@ export const deleteCollection = async (req: Request<DeleteRequestPayload>, res: 
 
     if (!id) {
         return res.json({ error: true, message: "Missing id" })
-    }
-
-    if (!(doesDocumentExist(id))) {
-        return res.json({ error: true, message: "Document doesn't exists" })
     }
 
     delete clients[id]
