@@ -7,8 +7,6 @@ import cors from 'cors';
 import session from 'express-session'
 import morgan from 'morgan'
 
-import { MongodbPersistence } from "y-mongodb-provider";
-
 import { connect as mongoConnect } from 'mongoose'
 
 import { Client as ElasticClient } from '@elastic/elasticsearch'
@@ -22,7 +20,6 @@ import media from './routes/media'
 import api from './routes/api'
 import index from './routes/index'
 import { Clients } from './interfaces';
-import path from 'path';
 
 //promises that need to be resolved before server starts
 const promises: Promise<any>[] = []
@@ -56,20 +53,20 @@ promises.push(createIndicies(DELETE === "true"))
 const app: Express = express();
 
 //logger
-app.use(morgan((tokens, req, res) => {
-    return JSON.stringify({
-        'remote_address': tokens['remote-addr'](req, res),
-        'time': tokens['date'](req, res, 'iso'),
-        'method': tokens['method'](req, res),
-        'url': tokens['url'](req, res),
-        'http_version': tokens['http-version'](req, res),
-        'status_code': tokens['status'](req, res),
-        'content_length': tokens['res'](req, res, 'content-length'),
-        'referrer': tokens['referrer'](req, res),
-        'user_agent': tokens['user-agent'](req, res),
-        'response_time': tokens['response-time'](req, res)
-    })
-}, { stream: fs.createWriteStream('./access.log', { flags: 'a' }) }))
+// app.use(morgan((tokens, req, res) => {
+//     return JSON.stringify({
+//         'remote_address': tokens['remote-addr'](req, res),
+//         'time': tokens['date'](req, res, 'iso'),
+//         'method': tokens['method'](req, res),
+//         'url': tokens['url'](req, res),
+//         'http_version': tokens['http-version'](req, res),
+//         'status_code': tokens['status'](req, res),
+//         'content_length': tokens['res'](req, res, 'content-length'),
+//         'referrer': tokens['referrer'](req, res),
+//         'user_agent': tokens['user-agent'](req, res),
+//         'response_time': tokens['response-time'](req, res)
+//     })
+// }, { stream: fs.createWriteStream('./access.log', { flags: 'a' }) }))
 
 
 //mail 
@@ -85,6 +82,11 @@ app.use(cors({ credentials: true }));
 // JSON Middleware
 app.use(express.json({ limit: '50mb' }))
 // app.use(express.urlencoded({ extended: true }));
+
+// app.use((req, res, next) => {
+//     console.log(req.body)
+//     next()
+// })
 
 //Cookie-based sessions
 app.use(session({
@@ -150,22 +152,28 @@ app.get('/server/logs', async (req, res) => {
         return {
             key, max: times[0], min: times[times.length - 1], requests: logs.length, total_time: total, average: total / logs.length, errors, times: times.slice(0, 10)
         }
-    }))
+    }).sort((a, b) => b.max - a.max))
 })
 
 //static routes: no auth needed
-app.use('/library', express.static("/cse356-google-docs/crdt/dist"))
-app.use(express.static("/cse356-google-docs/client/build"))
-app.get('/*', (req, res) => {
-    if (!res.headersSent) {
-        res.setHeader('X-CSE356', '63094ca6047a1139b66d985a')
-        res.sendFile('/cse356-google-docs/client/build/index.html')
-    }
-})
+// app.get('/library/crdt.js', express.static("/cse356-google-docs/crdt/dist"), (req, res) => {
+//     return res.sendFile('/cse356-google-docs/crdt/dist/crdt.js')
+// })
+// app.get('/library.crdt.js', express.static("/cse356-google-docs/crdt/dist"), (req, res) => {
+//     return res.sendFile('/cse356-google-docs/crdt/dist/crdt.js')
+// })
+
+// app.get('/*', express.static("/cse356-google-docs/client/build", {
+//     setHeaders: (res, path) => {
+//         res.set('X-CSE356', '63094ca6047a1139b66d985a')
+//     }
+// }), (req, res) => {
+//     return res.sendFile('/cse356-google-docs/client/build/index.html')
+// })
 
 //only start server once all promises are resolved
 Promise.all(promises).then(() => {
-    app.listen(80, async () => {
+    app.listen(PORT, async () => {
         console.log(`⚡️[server]: Server is running at http://localhost:${PORT}`);
     })
 })

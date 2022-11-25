@@ -18,7 +18,7 @@ exports.CRDT = class {
   text: Text
 
   constructor(cb: CRDTCallback) {
-    ['update', 'insert', 'delete', 'toHTML'].forEach(f => (this as any)[f] = (this as any)[f].bind(this));
+    ['update', 'insert', 'delete', 'insertImage', 'toHTML'].forEach(f => (this as any)[f] = (this as any)[f].bind(this));
 
     this.document = new Doc()
     this.cb = cb
@@ -32,8 +32,10 @@ exports.CRDT = class {
       this.text = this.document.getText()
     }
     applyUpdate(this.document, toUint8Array(data.update))
-    const payload = { event: 'update', data: data.update }
-    this.cb(JSON.stringify(payload), false)
+    if (data.event !== 'sync') {
+      const payload = { event: 'update', data: data.update, meta: "FROM CRDT CB" }
+      this.cb(JSON.stringify(payload), false)
+    }
   }
 
   insert(index: number, content: string, format: CRDTFormat) {
@@ -41,7 +43,7 @@ exports.CRDT = class {
     this.text.insert(index, content, format)
 
     const update = encodeStateAsUpdate(this.document, state)
-    const payload = { event: 'update', data: fromUint8Array(update) }
+    const payload = { event: 'update', data: fromUint8Array(update), meta: "FROM CRDT CB" }
     this.cb(JSON.stringify(payload), true)
   }
 
@@ -50,22 +52,21 @@ exports.CRDT = class {
     this.text.delete(index, length)
 
     const update = encodeStateAsUpdate(this.document, state)
-    const payload = { event: 'update', data: fromUint8Array(update) }
+    const payload = { event: 'update', data: fromUint8Array(update), meta: "FROM CRDT CB" }
+    this.cb(JSON.stringify(payload), true)
+  }
+
+  insertImage(index: number, url: string) {
+    const state = encodeStateVector(this.document)
+    this.text.insertEmbed(index, { image: url })
+
+    const update = encodeStateAsUpdate(this.document, state)
+    const payload = { event: 'update', data: fromUint8Array(update), meta: "FROM CRDT CB" }
     this.cb(JSON.stringify(payload), true)
   }
 
   toHTML() {
     const converter = new QuillDeltaToHtmlConverter(this.document.getText().toDelta())
     return converter.convert()
-  }
-
-  insertImage(index: number, url: string) {
-    const state = encodeStateVector(this.document)
-    const text = this.document.getText()
-    text.insertEmbed(index, { image: url })
-
-    const update = encodeStateAsUpdate(this.document, state)
-    const payload = { event: 'update', data: fromUint8Array(update) }
-    this.cb(JSON.stringify(payload), true)
   }
 };

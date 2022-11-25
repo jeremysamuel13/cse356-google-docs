@@ -148,7 +148,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         return res.json({ error: true, message: "User not found" });
     }
 
-    next()
+    return next()
 }
 
 router.post('/signup', signup)

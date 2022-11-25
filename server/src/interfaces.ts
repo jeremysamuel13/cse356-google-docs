@@ -1,4 +1,4 @@
-import SSE from "express-sse-ts";
+import { Response } from 'express'
 import { applyUpdate, Doc } from "yjs";
 import { updateDocument } from "./db/elasticsearch";
 export enum EventType {
@@ -25,23 +25,23 @@ export interface Cursor {
 
 export class Client {
     client_id: string;
-    res: SSE;
+    res: Response;
     cursor: Cursor;
     name: string;
 
-    constructor(res: SSE, client_id: string, name: string) {
+    constructor(res: Response, client_id: string, name: string) {
         this.client_id = client_id
         this.res = res
         this.cursor = {}
         this.name = name;
     }
 
-    send(data: string, event: EventType, exclude?: string) {
+    send(data: string, event: EventType) {
         return new Promise<void>((resolve, reject) => {
-            if (this.client_id !== exclude) {
-                this.res.send(data, event, this.client_id)
-                //console.log(`${this.client_id}: Data was sent (excluded: ${exclude})`)
-            }
+            let str = `event: ${event}\ndata: ${data}\n\n`
+
+            this.res.write(str)
+            //console.log(`${this.client_id}: Data was sent (excluded: ${exclude})`)
             return resolve()
         })
     }
@@ -63,19 +63,19 @@ export class ClientManager {
     }
 
     //add client to manager
-    addClient(res: SSE, client_id: string, name: string) {
+    addClient(res: Response, client_id: string, name: string) {
         this.clients.set(client_id, new Client(res, client_id, name))
         return client_id
     }
 
     //send to all clients
-    async sendToAll(data: string, event: EventType, exclude?: string) {
-        await Promise.all(Array.from(this.clients.values()).map((c: Client) => c.send(data, event, exclude)))
+    async sendToAll(data: string, event: EventType) {
+        await Promise.all(Array.from(this.clients.values()).map(async (c: Client) => await c.send(data, event)))
     }
 
     //send to one client
-    async sendTo(client_id: string, data: string, event: EventType, exclude?: string) {
-        await this.getClient(client_id)?.send(data, event, exclude)
+    async sendTo(client_id: string, data: string, event: EventType) {
+        await this.getClient(client_id)?.send(data, event)
     }
 
     //remove client
@@ -84,6 +84,7 @@ export class ClientManager {
         if (client) {
             client.clearCursor()
             await this.emitPresence(client)
+            client.res.end()
             this.clients.delete(client_id)
         }
         console.log(`${client_id}: Disconnected (hide cursor)`)
@@ -140,7 +141,6 @@ export class Document {
         applyUpdate(this.doc, update)
         this.lastModified = new Date()
         updateDocument(this.id)
-
     }
 }
 

@@ -12,6 +12,7 @@ export const search = async (req: Request, res: Response) => {
         return res.json({ error: true, message: "Missing query param" })
     }
 
+    await elastic_client.indices.refresh()
     const search_results = await elastic_client.search<ElasticDoc>({
         index: INDEX,
         query: {
@@ -22,15 +23,10 @@ export const search = async (req: Request, res: Response) => {
         },
         highlight: {
             fields: {
-                contents: {
-                    number_of_fragments: 1
-                },
-                name: {
-                    number_of_fragments: 1
-                }
+                contents: {},
+                name: {}
             }
-        },
-        size: 10
+        }
     })
 
     const mapped = search_results.hits?.hits?.map(val => {
@@ -46,6 +42,8 @@ export const search = async (req: Request, res: Response) => {
         return { snippet: null }
     })
 
+    console.log({ q, mapped, type: "SEARCH" })
+
     return res.json(mapped)
 }
 
@@ -56,6 +54,7 @@ export const suggest = async (req: Request, res: Response) => {
         return res.json({ error: true, message: "Missing query param" })
     }
 
+    await elastic_client.indices.refresh()
     const search_results = await elastic_client.search<ElasticDoc>({
         index: INDEX,
         query: {
@@ -83,12 +82,12 @@ export const suggest = async (req: Request, res: Response) => {
             pre_tags: [""],
             post_tags: [""]
         },
-        size: 10,
         _source: false
     })
 
-    console.log(search_results)
     const mapped = [...new Set(search_results.hits.hits.flatMap(h => [...(h.highlight?.name ?? []), ...(h.highlight?.contents ?? [])].map(word => word.toLowerCase())))]
+
+    console.log({ q, mapped, type: "SUGGEST" })
 
     return res.json(mapped)
 }

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction, Router } from 'express';
 import { clients } from '../index'
-import SSE from "express-sse-ts";
+import SSE from "express-sse";
 import { EventType, Event } from '../interfaces'
 import * as Y from "yjs";
 import { toUint8Array, fromUint8Array } from 'js-base64';
@@ -17,25 +17,25 @@ export const connect = async (req: Request, res: Response, next: NextFunction) =
 
     console.log(`${client_id}: Connecting`)
 
-    if (!(await doesDocumentExist(id))) {
+    if (!doesDocumentExist(id)) {
         console.log("Document doesnt exist")
         return res.json({ error: true, message: "Document does not exist" })
     }
 
     res.setHeader("X-Accel-Buffering", "no")
 
-    const exists = clients[id].clients.getClient(client_id)
-    let sse: SSE;
-    if (exists) {
-        sse = exists.res
-    } else {
-        sse = new SSE()
-        clients[id].clients.addClient(sse, client_id, req.session.name!)
-    }
+    const headers = {
+        'Content-Type': 'text/event-stream',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache'
+    };
+    res.writeHead(200, headers);
+
+    clients[id].clients.addClient(res, client_id, req.session.name!)
+
 
     // find document or create it
     const document: Y.Doc = clients[id].doc
-    sse.init(req, res, next)
 
     console.log(`Started connection with room: ${id}`)
 
@@ -45,16 +45,8 @@ export const connect = async (req: Request, res: Response, next: NextFunction) =
 
     await Promise.all([clients[id].clients.sendTo(client_id, JSON.stringify(payload), EventType.Sync), clients[id].clients.receivePresence(client_id)])
 
-    req.on("close", async () => {
-        await clients[id].clients.removeClient(client_id)
-        res.end()
-    })
-    req.on("finish", async () => {
-        await clients[id].clients.removeClient(client_id)
-        res.end()
-    })
+    res.on("close", async () => await clients[id].clients.removeClient(client_id))
     console.log("Connect success")
-
 }
 
 export const op = async (req: Request<Event>, res: Response) => {

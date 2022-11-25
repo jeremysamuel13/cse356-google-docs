@@ -1,5 +1,4 @@
 import { clients, elastic_client } from "../index";
-import { QuillDeltaToHtmlConverter } from 'quill-delta-to-html';
 import { Doc } from "yjs";
 
 const FLUSH_INTERVAL = 1500;
@@ -37,8 +36,7 @@ class ElasticQueue {
             const operations = (keys.map(id => [{ update: { _id: id } }, { doc: this.getBulkReq(id) }])).flat()
             await elastic_client.bulk<ElasticDoc, UpdateElasticDoc>({
                 index: INDEX,
-                operations,
-                refresh: true
+                operations
             })
             // await refresh()
             // console.log("Queue flushed")
@@ -49,7 +47,7 @@ class ElasticQueue {
         const doc = clients[id].doc
         //console.log(`Flushed from queue: ${id}`)
         return {
-            contents: toHTML(doc)
+            contents: doc.getText().toJSON()
         }
     }
 
@@ -79,6 +77,7 @@ export const deleteIndicies = async () => {
 
 export const createIndicies = async (del: boolean) => {
     if (del) {
+        console.log("DELETING INDICES")
         await deleteIndicies()
     }
 
@@ -87,33 +86,7 @@ export const createIndicies = async (del: boolean) => {
     if (!exists) {
         console.log(`Elasticsearch index (${INDEX}) does not exist, creating.`)
         return await elastic_client.indices.create({
-            index: INDEX,
-            settings: {
-                analysis: {
-                    char_filter: {
-                        ignore_html_tags: {
-                            type: "html_strip"
-                        }
-                    },
-                    analyzer: {
-                        ignore_html_tags: {
-                            type: "custom",
-                            tokenizer: "lowercase",
-                            char_filter: [
-                                "ignore_html_tags"
-                            ]
-                        }
-                    }
-                }
-            },
-            mappings: {
-                properties: {
-                    contents: {
-                        type: "text",
-                        analyzer: "ignore_html_tags"
-                    }
-                }
-            }
+            index: INDEX
         })
     }
 }
@@ -128,7 +101,7 @@ export const createDocument = async (id: string, document: Doc, name: string) =>
         id,
         index: INDEX,
         document: {
-            contents: toHTML(document),
+            contents: document.getText().toJSON(),
             name
         }
     })
@@ -151,9 +124,4 @@ export const deleteDocument = async (id: string) => {
 
 export const updateDocument = (id: string) => {
     elastic_queue.queueUpdate(id)
-}
-
-const toHTML = (document: Doc) => {
-    const converter = new QuillDeltaToHtmlConverter(document.getText().toDelta())
-    return converter.convert()
 }
