@@ -8,8 +8,7 @@ export interface IFile {
 
 export const fileSchema = new Schema<IFile>({
     mimetype: { type: String, required: true },
-    mediaid: { type: String, required: true, unique: true },
-    filepath: { type: String, required: true, unique: true }
+    mediaid: { type: String, required: true, unique: true }
 });
 
 export const File = model<IFile>('File', fileSchema)

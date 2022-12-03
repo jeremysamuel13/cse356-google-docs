@@ -11,20 +11,20 @@ import { createIndicies } from './db/elasticsearch';
 
 import { createTransport } from 'nodemailer'
 
-import users from './routes/users'
-import collection from './routes/collections'
-import media from './routes/media'
-import api from './routes/api'
-import index from './routes/index'
+import { default as users } from './routes/users'
+import { default as collection } from './routes/collections'
+import { default as media } from './routes/media'
+import { default as api } from './routes/api'
+import { default as index } from './routes/index'
 import { Clients } from './interfaces';
+import { connect, ConsumeMessage } from 'amqplib'
 
-//promises that need to be resolved before server starts
-const promises: Promise<any>[] = []
+
 
 // Allow for interaction with dotenv
 dotenv.config();
 
-const { PORT, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY, DELETE } = process.env;
+export const { PORT, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY, DELETE, ELASTICSEARCH_ENDPOINT, ELASTICSEARCH_USER, ELASTICSEARCH_PASS, AMQP_URL, QUEUE_NAME } = process.env;
 
 const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authSource=admin`
 console.log(mongostr)
@@ -35,10 +35,14 @@ mongoConnect(mongostr, (val) => console.log(val ?? "connected to docs db"));
 
 //ELASTICSEARCH
 export const elastic_client = new ElasticClient({
-    node: 'http://localhost:9200',
+    node: ELASTICSEARCH_ENDPOINT,
+    auth: {
+        username: ELASTICSEARCH_USER!,
+        password: ELASTICSEARCH_PASS!
+    }
 })
 
-promises.push(createIndicies(DELETE === "true"))
+await createIndicies(DELETE === "true")
 
 //mail 
 export const transport = createTransport({
@@ -46,6 +50,11 @@ export const transport = createTransport({
     path: '/usr/sbin/sendmail',
     newline: 'unix'
 })
+
+//amqp
+const amqp_conn = await connect(AMQP_URL!)
+export const amqp_channel = await amqp_conn.createChannel()
+await amqp_channel.assertQueue(QUEUE_NAME!)
 
 // EXPRESS
 const app: Express = express();
@@ -77,7 +86,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(session({
     resave: false,
     saveUninitialized: false,
-    secret: SECRET_KEY as string,
+    secret: SECRET_KEY!,
 }))
 
 //routes
@@ -150,9 +159,7 @@ app.use('/index', index);
 //     return res.sendFile('/cse356-google-docs/client/build/index.html')
 // })
 
-//only start server once all promises are resolved
-Promise.all(promises).then(() => {
-    app.listen(PORT, async () => {
-        console.log(`⚡️[server]: Server is running at http://localhost:${PORT}`);
-    })
+app.listen(PORT, async () => {
+    console.log(`⚡️[server]: Server is running at http://localhost:${PORT}`);
 })
+

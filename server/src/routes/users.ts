@@ -2,7 +2,7 @@ import { NextFunction, Request, Router, Response } from 'express'
 import { Account } from '../db/userSchema'
 import { v4 as uuidv4 } from 'uuid'
 import { putUser } from '../db/userManagement'
-import { transport, clients } from '../index'
+import { transport } from '../index'
 
 const router = Router()
 

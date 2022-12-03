@@ -1,8 +1,10 @@
-import { clients, elastic_client } from "../index";
+import { clients, elastic_client, amqp_channel, QUEUE_NAME } from "../index";
 import * as Y from "yjs";
+import { connect, ConsumeMessage } from 'amqplib'
+import { UpdateMessage } from 'elasticsearch-server/src/interfaces'
 
 const FLUSH_INTERVAL = 750;
-export const INDEX = 'cse356-m3';
+export const INDEX = 'cse356-m4';
 
 export interface ElasticDoc {
     name: string,
@@ -11,7 +13,7 @@ export interface ElasticDoc {
 
 type UpdateElasticDoc = Omit<ElasticDoc, "name">
 
-class ElasticQueue {
+export class ElasticQueue {
     queue: Set<string>
     interval: NodeJS.Timer | null
 
@@ -66,6 +68,8 @@ class ElasticQueue {
 }
 
 export const elastic_queue = new ElasticQueue()
+
+
 
 //console.log("CREATED QUEUE")
 //console.log(elastic_queue)
@@ -124,4 +128,11 @@ export const deleteDocument = async (id: string) => {
 
 export const updateDocument = (id: string) => {
     elastic_queue.queueUpdate(id)
+    const message: UpdateMessage = {
+        id,
+        index: INDEX,
+        action: "update",
+        contents: clients[id].doc.getText().toJSON()
+    }
+    amqp_channel.sendToQueue(QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
 }
