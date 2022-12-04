@@ -57,7 +57,7 @@ const updatesConsumer = channel.consume(QUEUE_NAME!, async (msg: ConsumeMessage 
     const decoded: BroadcastMessage = JSON.parse(msg.content.toString())
 
     switch (decoded.event) {
-        case 'op':
+        case 'update':
             const opmessage = decoded as OpMessage
             await clients[opmessage.id].sendToAll(opmessage.payload, EventType.Update)
             break;

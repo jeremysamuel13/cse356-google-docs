@@ -1,10 +1,9 @@
 import { Response } from 'express'
 
-export type Type = 'op' | 'presence'
 
 interface BaseMessage {
     id: string,
-    event: Type,
+    event: EventType,
     to?: string
 }
 
