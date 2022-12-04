@@ -27,7 +27,6 @@ export interface ElasticDoc {
 export type UpdateElasticDoc = Omit<ElasticDoc, "name">
 
 export interface Update {
-    index: string,
     doc: {
         contents: string
     },
