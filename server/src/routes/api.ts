@@ -71,17 +71,17 @@ export const op = async (req: Request<Event>, res: Response) => {
 
     //console.log(`${body.client_id}: Sent update`)
     const update = toUint8Array(body.data)
-    const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
+    await ymongo.storeUpdate(id, update)
 
+    const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
     const message = {
         id,
         event: EventType.Update,
         payload: JSON.stringify(payload)
     }
-
-    await ymongo.storeUpdate(id, update)
-    await updateDocument(id)
     sse_amqp_channel.sendToQueue(SSE_UPDATE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
+
+    await updateDocument(id)
 
     return res.json({ error: false })
 
