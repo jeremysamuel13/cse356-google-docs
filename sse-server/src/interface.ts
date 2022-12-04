@@ -107,6 +107,7 @@ export class ClientManager {
         const client = this.clients.get(client_id)
         if (client) {
             client.clearCursor()
+            client.res.end()
             this.clients.delete(client_id)
             await this.emitPresence(client)
         }
