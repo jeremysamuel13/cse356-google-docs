@@ -81,7 +81,7 @@ const doesDocumentExist = async (id: string) => {
 }
 
 
-app.use('/api/connect/:id', async (req: Request, res: Response) => {
+app.get('/api/connect/:id', async (req: Request, res: Response) => {
     const { id } = req.params
 
     const { email, password } = req.session as any;
