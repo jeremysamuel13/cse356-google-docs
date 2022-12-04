@@ -18,3 +18,18 @@ export interface CreateMessage extends BaseMessage {
 
 export interface DeleteMessage extends BaseMessage {
 }
+
+export interface ElasticDoc {
+    name: string,
+    contents: string
+}
+
+export type UpdateElasticDoc = Omit<ElasticDoc, "name">
+
+export interface Update {
+    index: string,
+    doc: {
+        contents: string
+    },
+    id: string
+}

@@ -1,14 +1,14 @@
 import * as dotenv from 'dotenv'
 import { connect, ConsumeMessage } from 'amqplib'
 import { Client as ElasticClient } from '@elastic/elasticsearch'
-import { UpdateMessage } from './interfaces'
+import { UpdateMessage, Update, ElasticDoc, UpdateElasticDoc } from './interfaces'
 
 dotenv.config()
 
 const { AMQP_URL, QUEUE_NAME, ELASTICSEARCH_ENDPOINT, ELASTICSEARCH_USER, ELASTICSEARCH_PASS } = process.env
 
 console.log(AMQP_URL)
-const FLUSH_INTERVAL = 750;
+const FLUSH_INTERVAL = 1250;
 const INDEX = 'cse356-m4';
 
 const elastic_client = new ElasticClient({
@@ -21,35 +21,60 @@ const elastic_client = new ElasticClient({
 
 let needs_refresh = false
 
+const updates = new Map<String, Update>
+
 const conn = await connect(AMQP_URL!)
 
 const channel = await conn.createChannel()
 
 await channel.assertQueue(QUEUE_NAME!)
-channel.prefetch(5)
+channel.prefetch(10)
 
-setInterval(async () => {
-    if (needs_refresh) {
-        await elastic_client.indices.refresh({ index: INDEX })
+const flushQueue = async () => {
+    if (!needs_refresh) {
+        clearInterval(interval!)
+        interval = null
+        return
     }
-}, FLUSH_INTERVAL)
 
-const updatesConsumer = channel.consume(QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
+    const values = Array.from(updates.values())
+    console.log(`Updating: ${Array.from(updates.keys())}`)
+    updates.clear()
+
+    needs_refresh = false
+
+    const operations = values.map(({ id, doc }) => [{ update: { _id: id } }, { doc }]).flat()
+
+    await elastic_client.bulk<ElasticDoc, UpdateElasticDoc>({
+        index: INDEX,
+        operations
+    })
+}
+
+let interval: NodeJS.Timer | null = null
+
+await channel.consume(QUEUE_NAME!, (msg: ConsumeMessage | null) => {
     if (!msg) {
         return
     }
 
-    //UPDATE ELASTICSEARCH INDEX
-    const decoded: UpdateMessage = JSON.parse(msg.content.toString())
-    await elastic_client.update({
-        index: decoded.index,
-        id: decoded.id,
-        doc: {
-            contents: decoded.contents
-        },
-        refresh: false
-    })
-    needs_refresh = true
-}, { noAck: true })
 
-await Promise.all([updatesConsumer])
+    //UPDATE ELASTICSEARCH INDEX
+    const { id, contents }: UpdateMessage = JSON.parse(msg.content.toString())
+
+    console.log(`Got message from: ${id}`)
+
+
+    updates[id] = {
+        id,
+        doc: {
+            contents
+        }
+    }
+
+    needs_refresh = true
+
+    if (!interval) {
+        interval = setInterval(flushQueue, FLUSH_INTERVAL)
+    }
+}, { noAck: true })
