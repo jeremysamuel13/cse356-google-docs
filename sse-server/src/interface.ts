@@ -1,6 +1,28 @@
 import { Response } from 'express'
-import * as Y from "yjs";
-import { updateDocument } from "./db/elasticsearch";
+
+export type Type = 'op' | 'presence'
+
+interface BaseMessage {
+    id: string,
+    event: Type,
+    to?: string
+}
+
+export interface OpMessage extends BaseMessage {
+    payload: string
+}
+
+export interface PresenceMessage extends BaseMessage {
+    cursor: {
+        index: number,
+        length: number
+    },
+    name: string,
+    session_id: string
+}
+
+export type BroadcastMessage = OpMessage | PresenceMessage
+
 export enum EventType {
     Sync = "sync",
     Update = "update",
@@ -114,28 +136,3 @@ export class ClientManager {
         await Promise.all(this.getCursors().map(async (cursor) => await this.sendTo(client_id, JSON.stringify(cursor), EventType.Presence)))
     }
 }
-
-// export class Document {
-//     name: string
-//     id: string
-//     clients: ClientManager
-//     lastModified: Date
-
-//     constructor(name: string, id: string) {
-//         this.name = name
-//         this.id = id
-//         this.clients = new ClientManager()
-//         this.lastModified = new Date()
-//     }
-
-//     updateDocument(update: Uint8Array) {
-//         Y.applyUpdate(this.doc, update)
-//         this.lastModified = new Date()
-//         updateDocument(this.id)
-//     }
-
-//     async getDocument() {
-//         return await ymongo.getYDoc(this.id)
-//     }
-// }
-

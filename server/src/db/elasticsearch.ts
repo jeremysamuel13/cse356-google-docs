@@ -1,4 +1,4 @@
-import { clients, elastic_client, amqp_channel, QUEUE_NAME } from "../index";
+import { elastic_client, es_amqp_channel, ES_QUEUE_NAME, ymongo } from "../index";
 import * as Y from "yjs";
 import { connect, ConsumeMessage } from 'amqplib'
 import { UpdateMessage } from 'elasticsearch-server/src/interfaces'
@@ -13,63 +13,61 @@ export interface ElasticDoc {
 
 type UpdateElasticDoc = Omit<ElasticDoc, "name">
 
-export class ElasticQueue {
-    queue: Set<string>
-    interval: NodeJS.Timer | null
+// export class ElasticQueue {
+//     queue: Set<string>
+//     interval: NodeJS.Timer | null
 
-    constructor() {
-        this.queue = new Set()
-        this.interval = null
-        //console.log("created queue")
-    }
+//     constructor() {
+//         this.queue = new Set()
+//         this.interval = null
+//         //console.log("created queue")
+//     }
 
-    queueUpdate(id: string) {
-        this.queue.add(id)
-        this.startInterval()
-        //console.log(`Added to queue: ${id}`)
-    }
+//     queueUpdate(id: string) {
+//         this.queue.add(id)
+//         this.startInterval()
+//         //console.log(`Added to queue: ${id}`)
+//     }
 
-    async flushQueue() {
-        if (this.queue.size === 0) {
-            this.stopInterval()
-        } else {
-            const keys = Array.from(this.queue.keys())
-            this.queue.clear()
-            const operations = (keys.map(id => [{ update: { _id: id } }, { doc: this.getBulkReq(id) }])).flat()
-            const res = await elastic_client.bulk<ElasticDoc, UpdateElasticDoc>({
-                index: INDEX,
-                operations
-            })
-            // await refresh()
-            // console.log("Queue flushed")
-        }
-    }
+//     async flushQueue() {
+//         if (this.queue.size === 0) {
+//             this.stopInterval()
+//         } else {
+//             const keys = Array.from(this.queue.keys())
+//             this.queue.clear()
+//             const operations = (keys.map(id => [{ update: { _id: id } }, { doc: this.getBulkReq(id) }])).flat()
+//             const res = await elastic_client.bulk<ElasticDoc, UpdateElasticDoc>({
+//                 index: INDEX,
+//                 operations
+//             })
+//             // await refresh()
+//             // console.log("Queue flushed")
+//         }
+//     }
 
-    getBulkReq(id: string) {
-        const doc = clients[id].doc
-        //console.log(`Flushed from queue: ${id}`)
-        return {
-            contents: doc.getText().toJSON()
-        }
-    }
+//     getBulkReq(id: string) {
+//         const doc = clients[id].doc
+//         //console.log(`Flushed from queue: ${id}`)
+//         return {
+//             contents: doc.getText().toJSON()
+//         }
+//     }
 
-    startInterval() {
-        if (!this.interval) {
-            this.interval = setInterval(() => { this.flushQueue() }, FLUSH_INTERVAL)
-            //console.log("Interval started")
-        }
-    }
+//     startInterval() {
+//         if (!this.interval) {
+//             this.interval = setInterval(() => { this.flushQueue() }, FLUSH_INTERVAL)
+//             //console.log("Interval started")
+//         }
+//     }
 
-    stopInterval() {
-        this.interval && clearInterval(this.interval)
-        this.interval = null
-        //console.log("Interval stopped")
-    }
-}
+//     stopInterval() {
+//         this.interval && clearInterval(this.interval)
+//         this.interval = null
+//         //console.log("Interval stopped")
+//     }
+// }
 
-export const elastic_queue = new ElasticQueue()
-
-
+// export const elastic_queue = new ElasticQueue()
 
 //console.log("CREATED QUEUE")
 //console.log(elastic_queue)
@@ -95,10 +93,6 @@ export const createIndicies = async (del: boolean) => {
     }
 }
 
-// export const refresh = async () => {
-//     console.log("Refreshing index")
-//     return await elastic_client.indices.refresh({ index: INDEX })
-// }
 
 export const createDocument = async (id: string, document: Y.Doc, name: string) => {
     const res = await elastic_client.index<ElasticDoc>({
@@ -109,7 +103,6 @@ export const createDocument = async (id: string, document: Y.Doc, name: string) 
             name
         }
     })
-    // await refresh()
     return res
 }
 
@@ -119,20 +112,20 @@ export const deleteDocument = async (id: string) => {
             id,
             index: INDEX
         })
-        // await refresh()
         return res
     } catch {
         return null
     }
 }
 
-export const updateDocument = (id: string) => {
-    elastic_queue.queueUpdate(id)
+//send updates to elasticsearch server
+export const updateDocument = async (id: string) => {
+    const doc: Y.Doc = await ymongo.getYDoc(id)
     const message: UpdateMessage = {
         id,
         index: INDEX,
         action: "update",
-        contents: clients[id].doc.getText().toJSON()
+        contents: doc.getText().toJSON()
     }
-    amqp_channel.sendToQueue(QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
+    es_amqp_channel.sendToQueue(ES_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
 }

@@ -16,20 +16,24 @@ import { default as collection } from './routes/collections'
 import { default as media } from './routes/media'
 import { default as api } from './routes/api'
 import { default as index } from './routes/index'
-import { Clients } from './interfaces';
-import { connect, ConsumeMessage } from 'amqplib'
-
-
+import { connect } from 'amqplib'
+import { MongodbPersistence } from 'y-mongodb-provider'
+import { default as MongoStore } from 'connect-mongo'
 
 // Allow for interaction with dotenv
 dotenv.config();
 
-export const { PORT, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY, DELETE, ELASTICSEARCH_ENDPOINT, ELASTICSEARCH_USER, ELASTICSEARCH_PASS, AMQP_URL, QUEUE_NAME } = process.env;
+export const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY, DELETE, ELASTICSEARCH_ENDPOINT, ELASTICSEARCH_USER, ELASTICSEARCH_PASS, ES_AMQP_URL, ES_QUEUE_NAME, SSE_AMQP_URL, SSE_QUEUE_NAME } = process.env;
 
 const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authSource=admin`
 console.log(mongostr)
 
-export const clients = {} as Clients
+
+//MONGO + YJS
+export const ymongo = new MongodbPersistence(mongostr, {
+    collectionName: COLLECTION,
+    flushSize: 25
+});
 
 mongoConnect(mongostr, (val) => console.log(val ?? "connected to docs db"));
 
@@ -51,10 +55,16 @@ export const transport = createTransport({
     newline: 'unix'
 })
 
-//amqp
-const amqp_conn = await connect(AMQP_URL!)
-export const amqp_channel = await amqp_conn.createChannel()
-await amqp_channel.assertQueue(QUEUE_NAME!)
+//es amqp
+const es_amqp_conn = await connect(ES_AMQP_URL!)
+export const es_amqp_channel = await es_amqp_conn.createChannel()
+await es_amqp_channel.assertQueue(ES_QUEUE_NAME!)
+
+//sse amqp
+const sse_amqp_conn = await connect(SSE_AMQP_URL!)
+export const sse_amqp_channel = await sse_amqp_conn.createChannel()
+await sse_amqp_channel.assertQueue(SSE_QUEUE_NAME!)
+
 
 // EXPRESS
 const app: Express = express();
@@ -87,6 +97,12 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     secret: SECRET_KEY!,
+    store: MongoStore.create({
+        mongoUrl: mongostr,
+        autoRemove: 'interval',
+        autoRemoveInterval: 1,
+        ttl: 60 * 60 // = 1hr
+    })
 }))
 
 //routes

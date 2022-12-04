@@ -126,7 +126,7 @@ const logout = (req: Request, res: Response) => {
     })
 }
 
-export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     const { email, password } = req.session as any;
 
     if (!email || !password) {
@@ -134,11 +134,11 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         return res.json({ error: true, message: "Email/password not supplied" });
     }
 
-    const acc = await Account.exists({ email, password });
-    if (!acc) {
-        console.log(`Middleware (${req.sessionID}): User not found`)
-        return res.json({ error: true, message: "User not found" });
-    }
+    // const acc = await Account.exists({ email, password });
+    // if (!acc) {
+    //     console.log(`Middleware (${req.sessionID}): User not found`)
+    //     return res.json({ error: true, message: "User not found" });
+    // }
 
     return next()
 }

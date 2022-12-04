@@ -1,51 +1,57 @@
 import { Request, Response, NextFunction, Router } from 'express';
-import { clients } from '../index'
-import { EventType, Event } from '../interfaces'
+import { sse_amqp_channel, SSE_QUEUE_NAME, ymongo } from '../index'
+import { EventType, Event, ClientManager } from '../interfaces'
 import * as Y from "yjs";
 import { toUint8Array, fromUint8Array } from 'js-base64';
 import { doesDocumentExist } from './collections';
 import { authMiddleware } from './users';
+import { updateDocument } from "../db/elasticsearch";
+
 
 const router = Router()
 
-export const connect = async (req: Request, res: Response, next: NextFunction) => {
+// export const connect = async (req: Request, res: Response, next: NextFunction) => {
 
-    const { id } = req.params
+//     const { id } = req.params
 
-    const client_id = req.sessionID;
+//     const client_id = req.sessionID;
 
-    console.log(`${client_id}: Connecting`)
+//     console.log(`${client_id}: Connecting`)
 
-    if (!doesDocumentExist(id)) {
-        console.log("Document doesnt exist")
-        return res.json({ error: true, message: "Document does not exist" })
-    }
-
-
-    const headers = {
-        'Content-Type': 'text/event-stream',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache',
-        "X-Accel-Buffering": "no"
-    };
-    res.set(headers)
-    res.flushHeaders();
-
-    clients[id].clients.addClient(res, client_id, req.session.name!)
+//     if (!await doesDocumentExist(id)) {
+//         console.log("Document doesnt exist")
+//         return res.json({ error: true, message: "Document does not exist" })
+//     }
 
 
-    // find document or create it
-    const doc = clients[id]
-    const update = Y.encodeStateAsUpdate(doc.doc);
-    const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
+//     const headers = {
+//         'Content-Type': 'text/event-stream',
+//         'Connection': 'keep-alive',
+//         'Cache-Control': 'no-cache',
+//         "X-Accel-Buffering": "no"
+//     };
+//     res.set(headers)
+//     res.flushHeaders();
 
-    await Promise.all([doc.clients.sendTo(client_id, JSON.stringify(payload), EventType.Sync), doc.clients.receivePresence(client_id)])
 
-    res.on("close", async () => {
-        await doc.clients.removeClient(client_id)
-    })
+//     if (!clients[id]) {
+//         clients[id] = new ClientManager()
+//     }
 
-}
+//     clients[id].addClient(res, client_id, req.session.name!)
+
+
+//     // find document or create it
+//     const doc: Y.Doc = await ymongo.getYDoc(id)
+//     const update = Y.encodeStateAsUpdate(doc);
+//     const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
+
+//     await Promise.all([clients[id].sendTo(client_id, JSON.stringify(payload), EventType.Sync), clients[id].receivePresence(client_id)])
+
+//     res.on("close", async () => {
+//         await clients[id].removeClient(client_id)
+//     })
+// }
 
 export const op = async (req: Request<Event>, res: Response) => {
     // we expect a json body
@@ -65,14 +71,19 @@ export const op = async (req: Request<Event>, res: Response) => {
 
     const body: Event = req.body
 
-    const doc = clients[id]
-
     //console.log(`${body.client_id}: Sent update`)
     const update = toUint8Array(body.data)
     const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
-    doc.updateDocument(update)
-    //console.log("Update success")
-    await doc.clients.sendToAll(JSON.stringify(payload), EventType.Update)
+
+    const message = {
+        id,
+        event: 'update',
+        payload: JSON.stringify(payload)
+    }
+
+    sse_amqp_channel.sendToQueue(SSE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
+    await ymongo.storeUpdate(id, update)
+    await updateDocument(id)
     return res.json({ error: false })
 
 }
@@ -86,23 +97,23 @@ export const presence = async (req: Request, res: Response) => {
     const { id } = req.params as any
     const { index, length } = req.body;
 
-    const doc = clients[id]
 
-    const c = doc.clients.getClient(req.sessionID)
-
-    if (!c) {
-        console.error(`ATTEMPTED TO SEND PRESENCE OF NON-EXISTENT CLIENT: ${req.sessionID}`)
-        return res.json({ error: true, message: "Client session not found" })
+    const cursor = { index, length }
+    const message = {
+        id,
+        event: 'presence',
+        cursor,
+        session_id: req.sessionID,
+        name: req.session.name
     }
 
-    c.setCursor(index, length)
-    await doc.clients.emitPresence(c)
+    sse_amqp_channel.sendToQueue(SSE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
 
     return res.json({ error: false })
 }
 
 router.use(authMiddleware)
-router.get('/connect/:id', connect);
+// router.get('/connect/:id', connect);
 router.post('/op/:id', op)
 router.post('/presence/:id', presence)
 
