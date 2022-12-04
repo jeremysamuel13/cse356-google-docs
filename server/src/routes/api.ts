@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction, Router } from 'express';
+import { Request, Response, Router } from 'express';
 import { sse_amqp_channel, SSE_QUEUE_NAME, ymongo } from '../index'
-import { EventType, Event, ClientManager } from '../interfaces'
+import { EventType, Event } from '../interfaces'
 import * as Y from "yjs";
 import { toUint8Array, fromUint8Array } from 'js-base64';
 import { doesDocumentExist } from './collections';
@@ -77,7 +77,7 @@ export const op = async (req: Request<Event>, res: Response) => {
 
     const message = {
         id,
-        event: 'update',
+        event: EventType.Update,
         payload: JSON.stringify(payload)
     }
 
@@ -101,7 +101,7 @@ export const presence = async (req: Request, res: Response) => {
     const cursor = { index, length }
     const message = {
         id,
-        event: 'presence',
+        event: EventType.Presence,
         cursor,
         session_id: req.sessionID,
         name: req.session.name

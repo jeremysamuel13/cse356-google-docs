@@ -24,8 +24,7 @@ export const create = async (req: Request<CreateRequestPayload>, res: Response) 
         return res.json({ error: true, message: "Missing name" })
     }
     const id = uuidv4()
-    const doc = ymongo.getYDoc(id)
-
+    const doc = await ymongo.getYDoc(id)
     await ymongo.setMeta(id, 'name', name);
     await createDocument(id, doc, name);
 
