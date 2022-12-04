@@ -45,10 +45,13 @@ const flushQueue = async () => {
 
     const operations = values.map(({ id, doc }) => [{ update: { _id: id } }, { doc }]).flat()
 
+    console.log(operations)
+
     if (operations.length > 0) {
         await elastic_client.bulk<ElasticDoc, UpdateElasticDoc>({
             index: INDEX,
-            operations
+            operations,
+            refresh: true
         })
     }
 }
@@ -66,12 +69,12 @@ await channel.consume(QUEUE_NAME!, (msg: ConsumeMessage | null) => {
 
     console.log(`Got message from: ${id}`)
 
-
     updates.set(id, {
         id,
         doc: {
             contents
         }
+
     })
 
     needs_refresh = true
