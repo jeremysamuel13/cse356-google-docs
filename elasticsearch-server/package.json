@@ -20,7 +20,8 @@
     "amqplib": "^0.10.3",
     "dotenv": "^16.0.3",
     "js-base64": "^3.7.2",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "y-mongodb-provider": "^0.1.4"
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.0",

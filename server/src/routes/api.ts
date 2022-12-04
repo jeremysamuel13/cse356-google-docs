@@ -1,9 +1,7 @@
 import { Request, Response, Router } from 'express';
-import { sse_amqp_channel, SSE_QUEUE_NAME, ymongo } from '../index'
+import { sse_amqp_channel, SSE_PRESENCE_QUEUE_NAME, SSE_UPDATE_QUEUE_NAME, ymongo } from '../index'
 import { EventType, Event } from '../interfaces'
-import * as Y from "yjs";
-import { toUint8Array, fromUint8Array } from 'js-base64';
-import { doesDocumentExist } from './collections';
+import { toUint8Array } from 'js-base64';
 import { authMiddleware } from './users';
 import { updateDocument } from "../db/elasticsearch";
 
@@ -81,9 +79,10 @@ export const op = async (req: Request<Event>, res: Response) => {
         payload: JSON.stringify(payload)
     }
 
-    sse_amqp_channel.sendToQueue(SSE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
     await ymongo.storeUpdate(id, update)
     await updateDocument(id)
+    sse_amqp_channel.sendToQueue(SSE_UPDATE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
+
     return res.json({ error: false })
 
 }
@@ -107,7 +106,7 @@ export const presence = async (req: Request, res: Response) => {
         name: req.session.name
     }
 
-    sse_amqp_channel.sendToQueue(SSE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
+    sse_amqp_channel.sendToQueue(SSE_PRESENCE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
 
     return res.json({ error: false })
 }

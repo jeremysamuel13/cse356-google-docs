@@ -9,8 +9,6 @@ import { connect as mongoConnect } from 'mongoose'
 import { Client as ElasticClient } from '@elastic/elasticsearch'
 import { createIndicies } from './db/elasticsearch';
 
-import { createTransport } from 'nodemailer'
-
 import { default as users } from './routes/users'
 import { default as collection } from './routes/collections'
 import { default as media } from './routes/media'
@@ -23,7 +21,7 @@ import { default as MongoStore } from 'connect-mongo'
 // Allow for interaction with dotenv
 dotenv.config();
 
-export const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY, DELETE, ELASTICSEARCH_ENDPOINT, ELASTICSEARCH_USER, ELASTICSEARCH_PASS, ES_AMQP_URL, ES_QUEUE_NAME, SSE_AMQP_URL, SSE_QUEUE_NAME, MAIL_AMQP_URL, MAIL_QUEUE_NAME } = process.env;
+export const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY, DELETE, ELASTICSEARCH_ENDPOINT, ELASTICSEARCH_USER, ELASTICSEARCH_PASS, ES_AMQP_URL, ES_QUEUE_NAME, SSE_AMQP_URL, SSE_UPDATE_QUEUE_NAME, SSE_PRESENCE_QUEUE_NAME, MAIL_AMQP_URL, MAIL_QUEUE_NAME } = process.env;
 
 const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authSource=admin`
 console.log(mongostr)
@@ -49,14 +47,15 @@ export const elastic_client = new ElasticClient({
 await createIndicies(DELETE === "true")
 
 //es amqp
-const es_amqp_conn = await connect(ES_AMQP_URL!)
-export const es_amqp_channel = await es_amqp_conn.createChannel()
-await es_amqp_channel.assertQueue(ES_QUEUE_NAME!)
+// const es_amqp_conn = await connect(ES_AMQP_URL!)
+// export const es_amqp_channel = await es_amqp_conn.createChannel()
+// await es_amqp_channel.assertQueue(ES_QUEUE_NAME!)
 
 //sse amqp
 const sse_amqp_conn = await connect(SSE_AMQP_URL!)
 export const sse_amqp_channel = await sse_amqp_conn.createChannel()
-await sse_amqp_channel.assertQueue(SSE_QUEUE_NAME!)
+await sse_amqp_channel.assertQueue(SSE_UPDATE_QUEUE_NAME!)
+await sse_amqp_channel.assertQueue(SSE_PRESENCE_QUEUE_NAME!)
 
 const mail_amqp_conn = await connect(MAIL_AMQP_URL!)
 export const mail_amqp_channel = await mail_amqp_conn.createChannel()

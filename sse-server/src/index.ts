@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv'
 import { connect, ConsumeMessage } from 'amqplib'
-import { BroadcastMessage, EventType, OpMessage, PresenceMessage } from './interface'
+import { EventType, OpMessage, PresenceMessage } from './interface'
 import express, { Express, Request, Response } from 'express'
 import { MongodbPersistence } from 'y-mongodb-provider'
 import { Clients, ClientManager } from './interface'
@@ -19,7 +19,7 @@ declare module 'express-session' {
 
 dotenv.config()
 
-export const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY, AMQP_URL, QUEUE_NAME } = process.env;
+export const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT, SECRET_KEY, AMQP_URL, UPDATE_QUEUE_NAME, PRESENCE_QUEUE_NAME } = process.env;
 const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authSource=admin`
 
 const clients = {} as Clients
@@ -46,32 +46,34 @@ app.use(session({
 
 const conn = await connect(AMQP_URL!)
 const channel = await conn.createChannel()
-await channel.assertQueue(QUEUE_NAME!)
+await channel.assertQueue(UPDATE_QUEUE_NAME!)
+await channel.assertQueue(PRESENCE_QUEUE_NAME!)
+
 channel.prefetch(10)
 
-const updatesConsumer = channel.consume(QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
+const updatesConsumer = channel.consume(UPDATE_QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
     if (!msg) {
         return
     }
 
     //BROADCAST MESSAGE
-    const decoded: BroadcastMessage = JSON.parse(msg.content.toString())
+    const opmessage: OpMessage = JSON.parse(msg.content.toString())
+    await clients[opmessage.id].sendToAll(opmessage.payload, EventType.Update)
 
-    switch (decoded.event) {
-        case 'update':
-            const opmessage = decoded as OpMessage
-            await clients[opmessage.id].sendToAll(opmessage.payload, EventType.Update)
-            break;
-        case 'presence':
-            const presencemessage = decoded as PresenceMessage
-            const cl = clients[presencemessage.id]?.getClient(presencemessage.session_id)
-            cl?.setCursor(presencemessage.cursor.index, presencemessage.cursor.length)
-            await clients[presencemessage.id].emitPresence(cl!)
-            break;
-        default:
-            console.error("INVALID EVENT TYPE")
-            break;
+}, { noAck: true })
+
+const presenceConsumer = channel.consume(PRESENCE_QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
+    if (!msg) {
+        return
     }
+
+    //BROADCAST MESSAGE
+    const presencemessage: PresenceMessage = JSON.parse(msg.content.toString())
+
+    const cl = clients[presencemessage.id]?.getClient(presencemessage.session_id)
+    cl?.setCursor(presencemessage.cursor.index, presencemessage.cursor.length)
+    await clients[presencemessage.id].emitPresence(cl!)
+
 }, { noAck: true })
 
 const doesDocumentExist = async (id: string) => {
@@ -129,5 +131,5 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 })
 
 app.listen(8000, async () => {
-    await updatesConsumer
+    await Promise.all([presenceConsumer, updatesConsumer])
 })
