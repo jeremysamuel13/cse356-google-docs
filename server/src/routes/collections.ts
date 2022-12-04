@@ -4,6 +4,7 @@ import { authMiddleware } from './users';
 import { ymongo } from '..';
 import { createDocument, deleteDocument } from '../db/elasticsearch';
 import mongoose from 'mongoose';
+import * as Y from 'yjs'
 
 const router = Router()
 
@@ -25,6 +26,7 @@ export const create = async (req: Request<CreateRequestPayload>, res: Response) 
     }
     const id = uuidv4()
     const doc = await ymongo.getYDoc(id)
+    await ymongo.storeUpdate(id, Y.encodeStateAsUpdate(doc))
     await ymongo.setMeta(id, 'name', name);
     await createDocument(id, doc, name);
 
