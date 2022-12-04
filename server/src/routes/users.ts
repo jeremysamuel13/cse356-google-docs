@@ -2,7 +2,7 @@ import { NextFunction, Request, Router, Response } from 'express'
 import { Account } from '../db/userSchema'
 import { v4 as uuidv4 } from 'uuid'
 import { putUser } from '../db/userManagement'
-import { transport } from '../index'
+import { mail_amqp_channel, MAIL_QUEUE_NAME } from '..'
 
 const router = Router()
 
@@ -39,12 +39,14 @@ const signup = async (req: Request<SignUpPayload>, res: Response) => {
 
     const verificationLink = `http://mahirjeremy.cse356.compas.cs.stonybrook.edu/users/verify?email=${encodeURIComponent(email)}&key=${verificationKey}`
 
-    await transport.sendMail({
-        from: 'root@mahirjeremy.cse356.compas.cs.stonybrook.edu',
+    const message =
+    {
         to: email,
         subject: 'Verify account for CSE 356 website',
         text: verificationLink
-    })
+    }
+
+    mail_amqp_channel.sendToQueue(MAIL_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
 
     return res.json({ error: false })
 }
