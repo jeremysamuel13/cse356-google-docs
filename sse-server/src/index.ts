@@ -47,6 +47,7 @@ app.use(session({
 const conn = await connect(AMQP_URL!)
 const channel = await conn.createChannel()
 await channel.assertQueue(QUEUE_NAME!)
+channel.prefetch(10)
 
 const updatesConsumer = channel.consume(QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
     if (!msg) {
@@ -63,7 +64,7 @@ const updatesConsumer = channel.consume(QUEUE_NAME!, async (msg: ConsumeMessage 
             break;
         case 'presence':
             const presencemessage = decoded as PresenceMessage
-            const cl = clients[presencemessage.id].getClient(presencemessage.session_id)
+            const cl = clients[presencemessage.id]?.getClient(presencemessage.session_id)
             cl?.setCursor(presencemessage.cursor.index, presencemessage.cursor.length)
             await clients[presencemessage.id].emitPresence(cl!)
             break;
@@ -71,9 +72,7 @@ const updatesConsumer = channel.consume(QUEUE_NAME!, async (msg: ConsumeMessage 
             console.error("INVALID EVENT TYPE")
             break;
     }
-
-    channel.ack(msg)
-})
+}, { noAck: true })
 
 const doesDocumentExist = async (id: string) => {
     const docs: Array<string> = await ymongo.getAllDocNames()

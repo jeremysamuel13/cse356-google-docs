@@ -17,6 +17,7 @@ export const { AMQP_URL, QUEUE_NAME, EMAIL_SENDER } = process.env;
 const conn = await connect(AMQP_URL!)
 const channel = await conn.createChannel()
 await channel.assertQueue(QUEUE_NAME!)
+channel.prefetch(5)
 
 await channel.consume(QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
     if (!msg) {
@@ -25,6 +26,4 @@ await channel.consume(QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
 
     const decoded: MailMessage = JSON.parse(msg.content.toString())
     await transport.sendMail({ ...decoded, from: EMAIL_SENDER! })
-
-    channel.ack(msg)
-})
+}, { noAck: true })

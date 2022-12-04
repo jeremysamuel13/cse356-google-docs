@@ -26,6 +26,7 @@ const conn = await connect(AMQP_URL!)
 const channel = await conn.createChannel()
 
 await channel.assertQueue(QUEUE_NAME!)
+channel.prefetch(5)
 
 setInterval(async () => {
     if (needs_refresh) {
@@ -48,8 +49,7 @@ const updatesConsumer = channel.consume(QUEUE_NAME!, async (msg: ConsumeMessage 
         },
         refresh: false
     })
-    channel.ack(msg)
     needs_refresh = true
-})
+}, { noAck: true })
 
 await Promise.all([updatesConsumer])
