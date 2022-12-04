@@ -109,6 +109,11 @@ app.use('/media', media)
 app.use('/api', api);
 app.use('/index', index);
 
+//Health check
+app.get('/health', (req, res) => {
+    res.status(200).send('Ok');
+});
+
 // app.get('/server/logs', async (req, res) => {
 //     const allFileContents = fs.readFileSync('./access.log', 'utf-8');
 
