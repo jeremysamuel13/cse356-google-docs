@@ -65,9 +65,12 @@ await channel.consume(QUEUE_NAME!, (msg: ConsumeMessage | null) => {
 
 
     //UPDATE ELASTICSEARCH INDEX
-    const { id, contents }: UpdateMessage = JSON.parse(msg.content.toString())
+    const message: UpdateMessage = JSON.parse(msg.content.toString())
+
+    const { id, contents } = message
 
     console.log(`Got message from: ${id}`)
+    console.log(message)
 
     updates.set(id, {
         id,
