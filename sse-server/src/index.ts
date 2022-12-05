@@ -45,13 +45,16 @@ app.use(session({
 }))
 
 const conn = await connect(AMQP_URL!)
-const channel = await conn.createChannel()
-await channel.assertQueue(UPDATE_QUEUE_NAME!)
-await channel.assertQueue(PRESENCE_QUEUE_NAME!)
+const update_channel = await conn.createChannel()
+const presence_channel = await conn.createChannel()
+await update_channel.assertQueue(UPDATE_QUEUE_NAME!)
+await presence_channel.assertQueue(PRESENCE_QUEUE_NAME!)
 
-channel.prefetch(10)
+update_channel.prefetch(20, true)
+presence_channel.prefetch(20, true)
 
-const updatesConsumer = channel.consume(UPDATE_QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
+
+const updatesConsumer = update_channel.consume(UPDATE_QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
     if (!msg) {
         return
     }
@@ -62,7 +65,7 @@ const updatesConsumer = channel.consume(UPDATE_QUEUE_NAME!, async (msg: ConsumeM
 
 }, { noAck: true })
 
-const presenceConsumer = channel.consume(PRESENCE_QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
+const presenceConsumer = presence_channel.consume(PRESENCE_QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
     if (!msg) {
         return
     }
