@@ -6,15 +6,13 @@ import { updateDocument } from "../db/elasticsearch";
 
 const router = Router()
 
-export const op = (req: Request<Event>, res: Response) => {
+export const op = async (req: Request<Event>, res: Response) => {
     // we expect a json body
     if (!req.is('application/json')) {
         console.log({ headers: req.headers, body: req.body })
         console.log("Not json")
         return res.json({ error: true, message: "Not json" })
     }
-
-    console.log("OP CALLED")
 
     const { id } = req.params as any
 
@@ -23,24 +21,15 @@ export const op = (req: Request<Event>, res: Response) => {
         return res.json({ error: true, message: "Missing id" })
     }
 
-    console.log("OP CALLED")
-
     const message = {
         id,
         payload: req.body.data
     }
 
     sse_amqp_channel.sendToQueue(SSE_UPDATE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
-
-    console.log("SENT")
-
     updateDocument(id)
 
-    console.log("UPDATED")
-
-
     return res.json({ error: false })
-
 }
 
 export const presence = async (req: Request, res: Response) => {
