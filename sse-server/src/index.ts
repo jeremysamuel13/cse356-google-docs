@@ -8,6 +8,7 @@ import * as Y from 'yjs'
 import { fromUint8Array, toUint8Array } from 'js-base64'
 import { default as MongoStore } from 'connect-mongo'
 import session from 'express-session'
+import morgan from 'morgan'
 
 declare module 'express-session' {
     interface SessionData {
@@ -32,6 +33,8 @@ export const ymongo = new MongodbPersistence(mongostr, {
 
 const app: Express = express();
 
+app.use(morgan("dev"))
+
 app.use(session({
     resave: false,
     saveUninitialized: false,
@@ -43,6 +46,7 @@ app.use(session({
         ttl: 60 * 60 // = 1hr
     })
 }))
+
 
 const conn = await connect(AMQP_URL!)
 const update_channel = await conn.createChannel()
@@ -116,14 +120,9 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
     res.set(headers)
     res.flushHeaders();
 
-    console.log("Headers set")
-
-
     if (!clients[id]) {
         clients[id] = new ClientManager(id)
     }
-
-    console.log("Client manager created")
 
     clients[id].addClient(res, client_id, req.session.name!)
 
@@ -131,20 +130,9 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
     const doc: Y.Doc = await ymongo.getYDoc(id)
     const update = Y.encodeStateAsUpdate(doc);
 
-    console.log("Doc found")
-
-    await clients[id].sendTo(client_id, fromUint8Array(update), EventType.Sync)
-
-    console.log("Synced")
-
-    await clients[id].receivePresence(client_id)
-
-    console.log("Presence sent")
-
-    // await Promise.all([clients[id].sendTo(client_id, fromUint8Array(update), EventType.Sync), clients[id].receivePresence(client_id)])
+    await Promise.all([clients[id].sendTo(client_id, fromUint8Array(update), EventType.Sync), clients[id].receivePresence(client_id)])
 
     res.on("close", () => {
-        console.log("Connection closed")
         clients[id].removeClient(client_id)
     })
 })
