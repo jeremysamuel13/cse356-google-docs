@@ -8,7 +8,6 @@ import * as Y from 'yjs'
 import { fromUint8Array, toUint8Array } from 'js-base64'
 import { default as MongoStore } from 'connect-mongo'
 import session from 'express-session'
-import cors from 'cors'
 
 declare module 'express-session' {
     interface SessionData {
