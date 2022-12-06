@@ -33,7 +33,10 @@ export const ymongo = new MongodbPersistence(mongostr, {
 
 const app: Express = express();
 
-app.use(cors())
+app.use(cors({
+    origin: ["http://jeremymahir.cse356.compas.cs.stonybrook.edu", "http://209.50.55.209"],
+    credentials: true
+}))
 
 app.use(session({
     resave: false,
