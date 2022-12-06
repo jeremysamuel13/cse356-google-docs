@@ -69,7 +69,7 @@ const modules = {
 }
 
 const onTextChange = (id: string | undefined) => (async (update: Uint8Array) => {
-    await axios.post(`/api/op/${id}`, fromUint8Array(update))
+    await axios.post(`/api/op/${id}`, {data: fromUint8Array(update)})
 })
 
 

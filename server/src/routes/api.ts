@@ -51,10 +51,10 @@ const router = Router()
 
 export const op = (req: Request<Event>, res: Response) => {
     // we expect a json body
-    // if (!req.is('application/json')) {
-    //     console.log("Not json")
-    //     return res.json({ error: true, message: "Not json" })
-    // }
+    if (!req.is('application/json')) {
+        console.log("Not json")
+        return res.json({ error: true, message: "Not json" })
+    }
 
     //console.log("OP CALLED")
 
@@ -65,13 +65,14 @@ export const op = (req: Request<Event>, res: Response) => {
         return res.json({ error: true, message: "Missing id" })
     }
 
+
     //console.log(`${body.client_id}: Sent update`)
     // const update = toUint8Array(body.data)
     // await ymongo.storeUpdate(id, update)
 
     const message = {
         id,
-        payload: req.body
+        payload: req.body.data
     }
     sse_amqp_channel.sendToQueue(SSE_UPDATE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
 

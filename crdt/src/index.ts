@@ -27,7 +27,7 @@ exports.CRDT = class {
 
   update(update: string) {
     Y.applyUpdate(this.document, toUint8Array(update))
-    this.cb(update, false)
+    this.cb(JSON.stringify({ data: update }), false)
   }
 
   insert(index: number, content: string, format: CRDTFormat) {
@@ -45,7 +45,7 @@ exports.CRDT = class {
 
     const update = Y.encodeStateAsUpdate(this.document, state)
     const payload = fromUint8Array(update)
-    this.cb(payload, true)
+    this.cb(JSON.stringify({ data: payload }), true)
   }
 
   insertImage(index: number, url: string) {
@@ -54,7 +54,7 @@ exports.CRDT = class {
 
     const update = Y.encodeStateAsUpdate(this.document, state)
     const payload = fromUint8Array(update)
-    this.cb(payload, true)
+    this.cb(JSON.stringify({ data: payload }), true)
   }
 
   toHTML() {
