@@ -180,7 +180,6 @@ export class ClientManager {
                         await this.sendToAll(JSON.stringify(payload), EventType.Presence)
                     }
                 }))
-                console.log("Reached end of presence interval")
             }, FLUSH_PRESENCE_INTERVAL)
         }
     }
