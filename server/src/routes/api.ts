@@ -1,7 +1,5 @@
 import { Request, Response, Router } from 'express';
 import { sse_amqp_channel, SSE_PRESENCE_QUEUE_NAME, SSE_UPDATE_QUEUE_NAME, ymongo } from '../index'
-import { EventType, Event } from '../interfaces'
-import { toUint8Array } from 'js-base64';
 import { authMiddleware } from './users';
 import { updateDocument } from "../db/elasticsearch";
 
