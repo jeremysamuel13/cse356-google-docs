@@ -53,7 +53,7 @@ await presence_channel.assertQueue(PRESENCE_QUEUE_NAME!)
 update_channel.prefetch(20, true)
 presence_channel.prefetch(20, true)
 
-const updatesConsumer = update_channel.consume(UPDATE_QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
+const updatesConsumer = update_channel.consume(UPDATE_QUEUE_NAME!, (msg: ConsumeMessage | null) => {
     if (!msg) {
         return
     }

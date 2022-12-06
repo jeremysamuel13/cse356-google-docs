@@ -1,6 +1,6 @@
 import { Response } from 'express'
-import { fromUint8Array, toUint8Array } from 'js-base64';
-import * as Y from 'yjs'
+import { fromUint8Array } from 'js-base64';
+import { mergeUpdates, logUpdate } from 'yjs'
 import { ymongo } from '.';
 
 
@@ -80,8 +80,8 @@ export class Client {
     }
 }
 
-const FLUSH_PRESENCE_INTERVAL = 1000
-const FLUSH_UPDATE_INTERVAL = 1000
+const FLUSH_PRESENCE_INTERVAL = 1500
+const FLUSH_UPDATE_INTERVAL = 1500
 
 
 export class ClientManager {
@@ -114,9 +114,13 @@ export class ClientManager {
                 }
 
                 const u = this.updates.splice(0, this.updates.length)
-                const update = Y.mergeUpdates(u)
+                const update = mergeUpdates(u)
+                logUpdate(update)
                 const encoded = fromUint8Array(update)
-                await Promise.all([this.sendToAll(encoded, EventType.Update), ymongo.storeUpdate(this.doc_id, update)])
+                await ymongo.storeUpdate(this.doc_id, update)
+                await this.sendToAll(encoded, EventType.Update)
+
+                console.log("Reached end of update interval")
             }, FLUSH_UPDATE_INTERVAL)
         }
     }
@@ -178,6 +182,7 @@ export class ClientManager {
                         await this.sendToAll(JSON.stringify(payload), EventType.Presence)
                     }
                 }))
+                console.log("Reached end of presence interval")
             }, FLUSH_PRESENCE_INTERVAL)
         }
     }
