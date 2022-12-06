@@ -83,6 +83,7 @@ const presenceConsumer = presence_channel.consume(PRESENCE_QUEUE_NAME!, (msg: Co
 
 const doesDocumentExist = async (id: string) => {
     const docs: Array<string> = await ymongo.getAllDocNames()
+    console.log(`${id} in ${docs}`)
     return docs.includes(id)
 }
 
@@ -116,16 +117,23 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
     res.set(headers)
     res.flushHeaders();
 
+    console.log("Headers set")
+
 
     if (!clients[id]) {
         clients[id] = new ClientManager(id)
     }
+
+    console.log("Client manager created")
 
     clients[id].addClient(res, client_id, req.session.name!)
 
     // find document or create it
     const doc: Y.Doc = await ymongo.getYDoc(id)
     const update = Y.encodeStateAsUpdate(doc);
+
+    console.log("Doc found")
+
 
     await Promise.all([clients[id].sendTo(client_id, fromUint8Array(update), EventType.Sync), clients[id].receivePresence(client_id)])
 
