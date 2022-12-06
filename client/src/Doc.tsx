@@ -68,18 +68,16 @@ const modules = {
     }
 }
 
-const onTextChange = (id: string | undefined, clientID: string) => (async (update: Uint8Array) => {
+const onTextChange = (id: string | undefined) => (async (update: Uint8Array) => {
     console.log({ update })
-    const payload = { event: 'update', data: fromUint8Array(update), client_id: clientID }
-    console.debug(payload)
-    await axios.post(`/api/op/${id}`, payload)
+    await axios.post(`/api/op/${id}`, fromUint8Array(update))
 })
 
 
 const Doc = () => {
     const { id } = useParams()
 
-    const [clientID, setClientID] = useState('')
+    const [connected, setConnected] = useState(false)
     const [ref, setRef] = useState<ReactQuill | null>(null)
     const doc = useRef(new Y.Doc())
     const binding = useRef<QuillBinding>(null!!)
@@ -96,14 +94,17 @@ const Doc = () => {
 
         const eventSource = new EventSource(`/api/connect/${id}`)
 
+        eventSource.onopen = () => {
+            setConnected(true)
+        }
+
         const handleUpdate = (event: MessageEvent<any>) => {
             console.debug("UPDATE")
             console.debug(event)
-            const data = JSON.parse(event.data)
             doc.current._observers.delete('update')
-            const update = toUint8Array(data.update)
+            const update = toUint8Array(event.data)
             Y.applyUpdate(doc.current, update)
-            doc.current.on('update', onTextChange(id, clientID))
+            doc.current.on('update', onTextChange(id))
         }
 
         const handlePresence = (event: MessageEvent<any>) => {
@@ -122,16 +123,14 @@ const Doc = () => {
         const handleSync = (event: MessageEvent<any>) => {
             console.debug("SYNC")
             console.debug(event)
-            const data = JSON.parse(event.data)
-            const update = toUint8Array(data.update)
-            setClientID(data.client_id)
+            const update = toUint8Array(event.data)
             doc.current._observers.delete('update')
             binding.current?.destroy()
             doc.current = new Y.Doc()
             Y.applyUpdate(doc.current, update)
             const editor = ref.getEditor()
             binding.current = new QuillBinding(doc.current.getText(), editor)
-            doc.current.on('update', onTextChange(id, data.client_id))
+            doc.current.on('update', onTextChange(id))
         }
 
         eventSource.addEventListener('update', handleUpdate)
@@ -153,7 +152,7 @@ const Doc = () => {
 
     return (
         <>
-            <div>{`Client ID: ${clientID}`}</div>
+            <>Connected: {connected}</>
             <ReactQuill
                 theme="snow"
                 modules={modules}

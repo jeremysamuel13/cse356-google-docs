@@ -26,17 +26,8 @@ exports.CRDT = class {
   }
 
   update(update: string) {
-    const data = JSON.parse(update)
-    if (data.event === 'sync') {
-      this.document = new Y.Doc()
-      this.text = this.document.getText()
-    }
-    Y.applyUpdate(this.document, toUint8Array(data.update))
-
-    if (data.event !== 'sync') {
-      const payload = { event: data.event, data: data.update, meta: "FROM CRDT CB" }
-      this.cb(JSON.stringify(payload), false)
-    }
+    Y.applyUpdate(this.document, toUint8Array(update))
+    this.cb(update, false)
   }
 
   insert(index: number, content: string, format: CRDTFormat) {
@@ -44,8 +35,8 @@ exports.CRDT = class {
     this.text.insert(index, content, format)
 
     const update = Y.encodeStateAsUpdate(this.document, state)
-    const payload = { event: 'update', data: fromUint8Array(update), meta: "FROM CRDT CB" }
-    this.cb(JSON.stringify(payload), true)
+    const payload = fromUint8Array(update)
+    this.cb(payload, true)
   }
 
   delete(index: number, length: number) {
@@ -53,8 +44,8 @@ exports.CRDT = class {
     this.text.delete(index, length)
 
     const update = Y.encodeStateAsUpdate(this.document, state)
-    const payload = { event: 'update', data: fromUint8Array(update), meta: "FROM CRDT CB" }
-    this.cb(JSON.stringify(payload), true)
+    const payload = fromUint8Array(update)
+    this.cb(payload, true)
   }
 
   insertImage(index: number, url: string) {
@@ -62,8 +53,8 @@ exports.CRDT = class {
     this.text.insertEmbed(index, { image: url })
 
     const update = Y.encodeStateAsUpdate(this.document, state)
-    const payload = { event: 'update', data: fromUint8Array(update), meta: "FROM CRDT CB" }
-    this.cb(JSON.stringify(payload), true)
+    const payload = fromUint8Array(update)
+    this.cb(payload, true)
   }
 
   toHTML() {

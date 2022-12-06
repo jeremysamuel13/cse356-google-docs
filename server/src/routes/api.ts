@@ -73,11 +73,9 @@ export const op = async (req: Request<Event>, res: Response) => {
     const update = toUint8Array(body.data)
     await ymongo.storeUpdate(id, update)
 
-    const payload = { update: body.data, client_id: body.client_id, event: EventType.Update }
     const message = {
         id,
-        event: EventType.Update,
-        payload: JSON.stringify(payload)
+        payload: body.data
     }
     sse_amqp_channel.sendToQueue(SSE_UPDATE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
 
@@ -100,7 +98,6 @@ export const presence = async (req: Request, res: Response) => {
     const cursor = { index, length }
     const message = {
         id,
-        event: EventType.Presence,
         cursor,
         session_id: req.sessionID,
         name: req.session.name

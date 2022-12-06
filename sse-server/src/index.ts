@@ -5,7 +5,7 @@ import express, { Express, Request, Response } from 'express'
 import { MongodbPersistence } from 'y-mongodb-provider'
 import { Clients, ClientManager } from './interface'
 import * as Y from 'yjs'
-import { fromUint8Array } from 'js-base64'
+import { fromUint8Array, toUint8Array } from 'js-base64'
 import { default as MongoStore } from 'connect-mongo'
 import session from 'express-session'
 
@@ -53,7 +53,6 @@ await presence_channel.assertQueue(PRESENCE_QUEUE_NAME!)
 update_channel.prefetch(20, true)
 presence_channel.prefetch(20, true)
 
-
 const updatesConsumer = update_channel.consume(UPDATE_QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
     if (!msg) {
         return
@@ -61,22 +60,23 @@ const updatesConsumer = update_channel.consume(UPDATE_QUEUE_NAME!, async (msg: C
 
     //BROADCAST MESSAGE
     const opmessage: OpMessage = JSON.parse(msg.content.toString())
-    await clients[opmessage.id].sendToAll(opmessage.payload, EventType.Update)
-
+    clients[opmessage.id]?.queueUpdate(toUint8Array(opmessage.payload))
 }, { noAck: true })
 
-const presenceConsumer = presence_channel.consume(PRESENCE_QUEUE_NAME!, async (msg: ConsumeMessage | null) => {
+const presenceConsumer = presence_channel.consume(PRESENCE_QUEUE_NAME!, (msg: ConsumeMessage | null) => {
     if (!msg) {
         return
     }
 
     //BROADCAST MESSAGE
     const presencemessage: PresenceMessage = JSON.parse(msg.content.toString())
-
     const cl = clients[presencemessage.id]?.getClient(presencemessage.session_id)
-    cl?.setCursor(presencemessage.cursor.index, presencemessage.cursor.length)
-    await clients[presencemessage.id].emitPresence(cl!)
-
+    if (cl) {
+        cl.setCursor(presencemessage.cursor.index, presencemessage.cursor.length)
+        clients[presencemessage.id].queuePresence(cl)
+    } else {
+        console.error(`Client (${presencemessage.id}) does not exist`)
+    }
 }, { noAck: true })
 
 const doesDocumentExist = async (id: string) => {
@@ -128,8 +128,8 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 
     await Promise.all([clients[id].sendTo(client_id, JSON.stringify(payload), EventType.Sync), clients[id].receivePresence(client_id)])
 
-    res.on("close", async () => {
-        await clients[id].removeClient(client_id)
+    res.on("close", () => {
+        clients[id].removeClient(client_id)
     })
 })
 

@@ -1,10 +1,10 @@
 import { Response } from 'express'
+import { fromUint8Array, toUint8Array } from 'js-base64';
+import * as Y from 'yjs'
 
 
 interface BaseMessage {
     id: string,
-    event: EventType,
-    to?: string
 }
 
 export interface OpMessage extends BaseMessage {
@@ -79,11 +79,42 @@ export class Client {
     }
 }
 
+const FLUSH_PRESENCE_INTERVAL = 1000
+const FLUSH_UPDATE_INTERVAL = 1000
+
+
 export class ClientManager {
     clients: Map<string, Client>
+    updates: Array<Uint8Array>
+    update_interval: NodeJS.Timer | null
+    presence_queue: Array<string>
+    presence_interval: NodeJS.Timer | null
+
 
     constructor() {
         this.clients = new Map()
+        this.updates = []
+        this.presence_queue = []
+        this.update_interval = null
+        this.presence_interval = null
+    }
+
+    queueUpdate(update: Uint8Array) {
+        this.updates.push(update)
+
+        if (!this.update_interval) {
+            this.update_interval = setInterval(async () => {
+                if (this.updates.length === 0) {
+                    clearInterval(this.update_interval!)
+                    return
+                }
+
+                const u = this.updates.splice(0, this.updates.length)
+                const update = Y.mergeUpdates(u)
+                const encoded = fromUint8Array(update)
+                await this.sendToAll(encoded, EventType.Update)
+            }, FLUSH_UPDATE_INTERVAL)
+        }
     }
 
     //add client to manager
@@ -103,13 +134,13 @@ export class ClientManager {
     }
 
     //remove client
-    async removeClient(client_id: string) {
+    removeClient(client_id: string) {
         const client = this.clients.get(client_id)
         if (client) {
             client.clearCursor()
             client.res.end()
             this.clients.delete(client_id)
-            await this.emitPresence(client)
+            this.queuePresence(client)
         }
     }
 
@@ -124,12 +155,26 @@ export class ClientManager {
     }
 
     //emit presence to all other clients
-    async emitPresence(c: Client) {
-        //console.log(c)
-        //console.log(c.session_id)
-        const payload = { session_id: c.client_id, name: c.name, cursor: c.cursor }
-        await this.sendToAll(JSON.stringify(payload), EventType.Presence)
-        //console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
+    queuePresence(c: Client) {
+        this.presence_queue.push(c.client_id)
+
+        if (!this.presence_interval) {
+            this.presence_interval = setInterval(async () => {
+                if (this.presence_queue.length === 0) {
+                    clearInterval(this.presence_interval!)
+                    return
+                }
+
+                const clients = this.presence_queue.splice(0, this.presence_queue.length)
+                await Promise.all(clients.map(async id => {
+                    const c = this.getClient(id)
+                    if (c) {
+                        const payload = { session_id: c.client_id, name: c.name, cursor: c.cursor }
+                        await this.sendToAll(JSON.stringify(payload), EventType.Presence)
+                    }
+                }))
+            }, FLUSH_PRESENCE_INTERVAL)
+        }
     }
 
     async receivePresence(client_id: string) {
