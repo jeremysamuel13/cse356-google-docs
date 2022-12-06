@@ -129,7 +129,7 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 
     // find document or create it
     const doc: Y.Doc = await ymongo.getYDoc(id)
-    const update = Y.encodeStateAsUpdate(doc);
+    const update = Y.encodeStateVector(doc);
 
     console.log("Doc found")
 
