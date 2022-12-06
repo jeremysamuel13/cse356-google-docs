@@ -51,10 +51,10 @@ const router = Router()
 
 export const op = (req: Request<Event>, res: Response) => {
     // we expect a json body
-    if (!req.is('application/json')) {
-        console.log("Not json")
-        return res.json({ error: true, message: "Not json" })
-    }
+    // if (!req.is('application/json')) {
+    //     console.log("Not json")
+    //     return res.json({ error: true, message: "Not json" })
+    // }
 
     //console.log("OP CALLED")
 
