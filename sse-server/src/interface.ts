@@ -103,11 +103,15 @@ export class ClientManager {
     }
 
     queueUpdate(update: Uint8Array) {
+        console.log("Update queued")
         this.updates.push(update)
 
         if (!this.update_interval) {
+            console.log("No interval")
             this.update_interval = setInterval(async () => {
+                console.log("Start of interval")
                 if (this.updates.length === 0) {
+                    console.log("Clearing interval")
                     clearInterval(this.update_interval!)
                     this.update_interval = null
                     return
