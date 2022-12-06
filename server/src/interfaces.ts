@@ -12,11 +12,6 @@ export enum EventType {
 // }
 
 
-export interface Event {
-    event: EventType,
-    data: any,
-    client_id: string
-}
 
 export type Cursor = {
     index: number

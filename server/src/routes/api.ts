@@ -67,15 +67,13 @@ export const op = (req: Request<Event>, res: Response) => {
         return res.json({ error: true, message: "Missing id" })
     }
 
-    const body: Event = req.body
-
     //console.log(`${body.client_id}: Sent update`)
     // const update = toUint8Array(body.data)
     // await ymongo.storeUpdate(id, update)
 
     const message = {
         id,
-        payload: body.data
+        payload: req.body
     }
     sse_amqp_channel.sendToQueue(SSE_UPDATE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
 
