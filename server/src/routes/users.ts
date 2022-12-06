@@ -37,7 +37,7 @@ const signup = async (req: Request<SignUpPayload>, res: Response) => {
 
     await putUser(name, email, password, verificationKey)
 
-    const verificationLink = `http://mahirjeremy.cse356.compas.cs.stonybrook.edu/users/verify?email=${encodeURIComponent(email)}&key=${verificationKey}`
+    const verificationLink = `http://jeremymahir.cse356.compas.cs.stonybrook.edu/users/verify?email=${encodeURIComponent(email)}&key=${verificationKey}`
 
     const message =
     {
