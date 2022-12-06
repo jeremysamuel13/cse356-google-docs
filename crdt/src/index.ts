@@ -36,7 +36,7 @@ exports.CRDT = class {
 
     const update = Y.encodeStateAsUpdate(this.document, state)
     const payload = fromUint8Array(update)
-    this.cb(payload, true)
+    this.cb(JSON.stringify({ data: payload }), true)
   }
 
   delete(index: number, length: number) {
