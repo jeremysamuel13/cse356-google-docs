@@ -94,10 +94,6 @@ const Doc = () => {
 
         const eventSource = new EventSource(`/api/connect/${id}`)
 
-        eventSource.onopen = () => {
-            setConnected(true)
-        }
-
         const handleUpdate = (event: MessageEvent<any>) => {
             console.debug("UPDATE")
             console.debug(event)
@@ -121,6 +117,8 @@ const Doc = () => {
         }
 
         const handleSync = (event: MessageEvent<any>) => {
+            setConnected(true)
+
             console.debug("SYNC")
             console.debug(event)
             const update = toUint8Array(event.data)
