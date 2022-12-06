@@ -134,10 +134,18 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 
     console.log("Doc found")
 
+    await clients[id].sendTo(client_id, fromUint8Array(update), EventType.Sync)
 
-    await Promise.all([clients[id].sendTo(client_id, fromUint8Array(update), EventType.Sync), clients[id].receivePresence(client_id)])
+    console.log("Synced")
+
+    await clients[id].receivePresence(client_id)
+
+    console.log("Presence sent")
+
+    // await Promise.all([clients[id].sendTo(client_id, fromUint8Array(update), EventType.Sync), clients[id].receivePresence(client_id)])
 
     res.on("close", () => {
+        console.log("Connection closed")
         clients[id].removeClient(client_id)
     })
 })
