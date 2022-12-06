@@ -47,9 +47,9 @@ export const elastic_client = new ElasticClient({
 await createIndicies(DELETE === "true")
 
 //es amqp
-// const es_amqp_conn = await connect(ES_AMQP_URL!)
-// export const es_amqp_channel = await es_amqp_conn.createChannel()
-// await es_amqp_channel.assertQueue(ES_QUEUE_NAME!)
+const es_amqp_conn = await connect(ES_AMQP_URL!)
+export const es_amqp_channel = await es_amqp_conn.createChannel()
+await es_amqp_channel.assertQueue(ES_QUEUE_NAME!)
 
 //sse amqp
 const sse_amqp_conn = await connect(SSE_AMQP_URL!)

@@ -8,7 +8,7 @@ dotenv.config()
 const { AMQP_URL, QUEUE_NAME, ELASTICSEARCH_ENDPOINT, ELASTICSEARCH_USER, ELASTICSEARCH_PASS } = process.env
 
 console.log(AMQP_URL)
-const FLUSH_INTERVAL = 2500;
+const FLUSH_INTERVAL = 2250;
 const INDEX = 'cse356-m4';
 
 const elastic_client = new ElasticClient({
