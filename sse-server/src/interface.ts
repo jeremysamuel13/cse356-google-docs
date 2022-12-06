@@ -1,6 +1,6 @@
 import { Response } from 'express'
 import { fromUint8Array } from 'js-base64';
-import { mergeUpdates, logUpdate } from 'yjs'
+import { mergeUpdates } from 'yjs'
 import { ymongo } from '.';
 
 
@@ -103,15 +103,11 @@ export class ClientManager {
     }
 
     queueUpdate(update: Uint8Array) {
-        console.log("Update queued")
         this.updates.push(update)
 
         if (!this.update_interval) {
-            console.log("No interval")
             this.update_interval = setInterval(async () => {
-                console.log("Start of interval")
                 if (this.updates.length === 0) {
-                    console.log("Clearing interval")
                     clearInterval(this.update_interval!)
                     this.update_interval = null
                     return
@@ -119,12 +115,10 @@ export class ClientManager {
 
                 const u = this.updates.splice(0, this.updates.length)
                 const update = mergeUpdates(u)
-                logUpdate(update)
                 const encoded = fromUint8Array(update)
                 await ymongo.storeUpdate(this.doc_id, update)
                 await this.sendToAll(encoded, EventType.Update)
 
-                console.log("Reached end of update interval")
             }, FLUSH_UPDATE_INTERVAL)
         }
     }

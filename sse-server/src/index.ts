@@ -58,12 +58,8 @@ const updatesConsumer = update_channel.consume(UPDATE_QUEUE_NAME!, (msg: Consume
         return
     }
 
-    console.log("Consumed update from queue")
-
     //BROADCAST MESSAGE
     const opmessage: OpMessage = JSON.parse(msg.content.toString())
-
-    console.log(opmessage)
 
     clients[opmessage.id]?.queueUpdate(toUint8Array(opmessage.payload))
 }, { noAck: true })
