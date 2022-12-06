@@ -124,9 +124,8 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
     // find document or create it
     const doc: Y.Doc = await ymongo.getYDoc(id)
     const update = Y.encodeStateAsUpdate(doc);
-    const payload = { update: fromUint8Array(update), client_id: client_id, event: EventType.Sync }
 
-    await Promise.all([clients[id].sendTo(client_id, JSON.stringify(payload), EventType.Sync), clients[id].receivePresence(client_id)])
+    await Promise.all([clients[id].sendTo(client_id, fromUint8Array(update), EventType.Sync), clients[id].receivePresence(client_id)])
 
     res.on("close", () => {
         clients[id].removeClient(client_id)
