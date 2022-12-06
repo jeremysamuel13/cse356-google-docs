@@ -82,12 +82,6 @@ const app: Express = express();
 //     })
 // }, { stream: fs.createWriteStream('./access.log', { flags: 'a' }) }))
 
-
-app.use(cors({
-    origin: ["http://jeremymahir.cse356.compas.cs.stonybrook.edu", "http://209.50.55.209"],
-    credentials: true
-}))
-
 // JSON Middleware
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }));
