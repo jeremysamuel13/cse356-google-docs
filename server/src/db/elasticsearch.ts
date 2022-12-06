@@ -118,6 +118,5 @@ export const deleteDocument = async (id: string) => {
 
 //send updates to elasticsearch server
 export const updateDocument = async (id: string) => {
-    const doc: Y.Doc = await ymongo.getYDoc(id)
     es_amqp_channel.sendToQueue(ES_QUEUE_NAME!, Buffer.from(id))
 }

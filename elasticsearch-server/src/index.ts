@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv'
 import { connect, ConsumeMessage } from 'amqplib'
 import { Client as ElasticClient } from '@elastic/elasticsearch'
-import { UpdateMessage, ElasticDoc, UpdateElasticDoc } from './interfaces'
+import { ElasticDoc, UpdateElasticDoc } from './interfaces'
 import { MongodbPersistence } from 'y-mongodb-provider'
 import { Doc } from 'yjs'
 
