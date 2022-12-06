@@ -109,6 +109,7 @@ export class ClientManager {
             this.update_interval = setInterval(async () => {
                 if (this.updates.length === 0) {
                     clearInterval(this.update_interval!)
+                    this.update_interval = null
                     return
                 }
 
@@ -165,6 +166,7 @@ export class ClientManager {
             this.presence_interval = setInterval(async () => {
                 if (this.presence_queue.length === 0) {
                     clearInterval(this.presence_interval!)
+                    this.presence_interval = null
                     return
                 }
 
