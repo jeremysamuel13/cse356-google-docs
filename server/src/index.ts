@@ -17,6 +17,7 @@ import { default as index } from './routes/index'
 import { connect } from 'amqplib'
 import { MongodbPersistence } from 'y-mongodb-provider'
 import { default as MongoStore } from 'connect-mongo'
+import cors from 'cors'
 
 // Allow for interaction with dotenv
 dotenv.config();
@@ -82,6 +83,7 @@ const app: Express = express();
 // }, { stream: fs.createWriteStream('./access.log', { flags: 'a' }) }))
 
 
+app.use(cors())
 
 // JSON Middleware
 app.use(express.json())
