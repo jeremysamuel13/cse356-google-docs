@@ -51,7 +51,7 @@ const router = Router()
 //     })
 // }
 
-export const op = async (req: Request<Event>, res: Response) => {
+export const op = (req: Request<Event>, res: Response) => {
     // we expect a json body
     if (!req.is('application/json')) {
         console.log("Not json")
@@ -70,8 +70,8 @@ export const op = async (req: Request<Event>, res: Response) => {
     const body: Event = req.body
 
     //console.log(`${body.client_id}: Sent update`)
-    const update = toUint8Array(body.data)
-    await ymongo.storeUpdate(id, update)
+    // const update = toUint8Array(body.data)
+    // await ymongo.storeUpdate(id, update)
 
     const message = {
         id,
@@ -79,7 +79,7 @@ export const op = async (req: Request<Event>, res: Response) => {
     }
     sse_amqp_channel.sendToQueue(SSE_UPDATE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
 
-    await updateDocument(id)
+    updateDocument(id)
 
     return res.json({ error: false })
 

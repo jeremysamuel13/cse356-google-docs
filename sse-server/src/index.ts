@@ -116,7 +116,7 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 
 
     if (!clients[id]) {
-        clients[id] = new ClientManager()
+        clients[id] = new ClientManager(id)
     }
 
     clients[id].addClient(res, client_id, req.session.name!)

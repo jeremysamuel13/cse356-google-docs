@@ -117,6 +117,6 @@ export const deleteDocument = async (id: string) => {
 }
 
 //send updates to elasticsearch server
-export const updateDocument = async (id: string) => {
+export const updateDocument = (id: string) => {
     es_amqp_channel.sendToQueue(ES_QUEUE_NAME!, Buffer.from(id))
 }

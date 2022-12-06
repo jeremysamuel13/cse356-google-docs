@@ -1,6 +1,7 @@
 import { Response } from 'express'
 import { fromUint8Array, toUint8Array } from 'js-base64';
 import * as Y from 'yjs'
+import { ymongo } from '.';
 
 
 interface BaseMessage {
@@ -84,6 +85,7 @@ const FLUSH_UPDATE_INTERVAL = 1000
 
 
 export class ClientManager {
+    doc_id: string
     clients: Map<string, Client>
     updates: Array<Uint8Array>
     update_interval: NodeJS.Timer | null
@@ -91,7 +93,8 @@ export class ClientManager {
     presence_interval: NodeJS.Timer | null
 
 
-    constructor() {
+    constructor(id: string) {
+        this.doc_id = id
         this.clients = new Map()
         this.updates = []
         this.presence_queue = []
@@ -112,7 +115,7 @@ export class ClientManager {
                 const u = this.updates.splice(0, this.updates.length)
                 const update = Y.mergeUpdates(u)
                 const encoded = fromUint8Array(update)
-                await this.sendToAll(encoded, EventType.Update)
+                await Promise.all([this.sendToAll(encoded, EventType.Update), ymongo.storeUpdate(this.doc_id, update)])
             }, FLUSH_UPDATE_INTERVAL)
         }
     }
