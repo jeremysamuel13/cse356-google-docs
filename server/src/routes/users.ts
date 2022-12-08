@@ -88,7 +88,7 @@ const login = async (req: Request<LoginPayload>, res: Response) => {
 
     if (!email || !password) {
         console.log(`Login: Name/pass not found`)
-        return res.json({ error: true, message: "name/password not found" })
+        return res.json({ error: true, message: "name/password not found", body: req.body })
     }
 
     const user = await Account.findOne({ email })
