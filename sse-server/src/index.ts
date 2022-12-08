@@ -105,7 +105,7 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
     const client_id = req.sessionID;
 
     const log = console.log
-    console.log = (value: string) => log(`(${client_id}): ${value}`)
+    console.log = (value: string) => console.debug(`(${client_id}): ${value}`)
 
     console.log(`Connecting`)
 
