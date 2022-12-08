@@ -47,72 +47,39 @@ app.use(session({
     })
 }))
 
-
-const conn = await connect(AMQP_URL!)
-const update_channel = await conn.createChannel()
-const presence_channel = await conn.createChannel()
-await update_channel.assertQueue(UPDATE_QUEUE_NAME!)
-await presence_channel.assertQueue(PRESENCE_QUEUE_NAME!)
-
-update_channel.prefetch(20, true)
-presence_channel.prefetch(20, true)
-
-const updatesConsumer = update_channel.consume(UPDATE_QUEUE_NAME!, (msg: ConsumeMessage | null) => {
-    if (!msg) {
-        return
-    }
-
-    //BROADCAST MESSAGE
-    const opmessage: OpMessage = JSON.parse(msg.content.toString())
-
-    clients[opmessage.id]?.queueUpdate(toUint8Array(opmessage.payload))
-}, { noAck: true })
-
-const presenceConsumer = presence_channel.consume(PRESENCE_QUEUE_NAME!, (msg: ConsumeMessage | null) => {
-    if (!msg) {
-        return
-    }
-
-    //BROADCAST MESSAGE
-    const presencemessage: PresenceMessage = JSON.parse(msg.content.toString())
-    const cl = clients[presencemessage.id]?.getClient(presencemessage.session_id)
-    if (cl) {
-        cl.setCursor(presencemessage.cursor.index, presencemessage.cursor.length)
-        clients[presencemessage.id].queuePresence(cl)
-    } else {
-        console.error(`Client (${presencemessage.id}) does not exist`)
-    }
-}, { noAck: true })
-
 const doesDocumentExist = async (id: string) => {
     const docs: Array<string> = await ymongo.getAllDocNames()
     console.log(`${id} in ${docs}`)
     return docs.includes(id)
 }
 
-
 app.get('/api/connect/:id', async (req: Request, res: Response) => {
     const { id } = req.params
 
     const { email, password, name } = req.session as any;
 
-    //simple auth check
-    if (!email || !password) {
-        console.log(`Middleware (${req.sessionID}): No email/pass`)
-        return res.json({ error: true, message: "Email/password not supplied" });
+
+    if (!req.sessionID) {
+        console.log(`No session found`)
+        return res.json({ error: true, message: "ERROR: No session found" });
     }
 
     const client_id = req.sessionID;
 
-    const log = console.log
-    console.log = (value: string) => log(`(${client_id}): ${value}`)
+    const log = (value: string) => console.log(`(${client_id}): ${value}`)
 
-    console.log(`Connecting`)
+
+    //simple auth check
+    if (!email || !password) {
+        console.log(`ERROR: No email/pass`)
+        return res.json({ error: true, message: "Email/password not supplied" });
+    }
+    log(`Connecting`)
 
     const doesDocExist = await doesDocumentExist(id)
 
     if (!doesDocExist) {
-        console.log("Document doesnt exist")
+        log("ERROR: Document doesnt exist")
         return res.json({ error: true, message: "Document does not exist" })
     }
 
@@ -126,7 +93,7 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
     res.writeHead(200, headers);
 
     if (!name) {
-        console.log("NO NAME FOUND")
+        log("ERROR: NO NAME FOUND")
     }
 
     if (!clients[id]) {
@@ -141,15 +108,61 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 
     await Promise.all([clients[id].sendTo(client_id, fromUint8Array(update), EventType.Sync), clients[id].receivePresence(client_id)])
 
-    console.log("MESSAGES SENT")
+    log("MESSAGES SENT")
 
 
     res.on("close", () => {
-        console.log("CLOSED")
+        log("CLOSED")
+        clients[id].removeClient(client_id)
+    })
+
+    res.on("finish", () => {
+        log("FINISHED")
+        clients[id].removeClient(client_id)
+    })
+
+    res.on("error", (err) => {
+        log(`ERROR: ${err}`)
         clients[id].removeClient(client_id)
     })
 })
 
 app.listen(8000, async () => {
-    await Promise.all([presenceConsumer, updatesConsumer])
+    const conn = await connect(AMQP_URL!)
+    const update_channel = await conn.createChannel()
+    const presence_channel = await conn.createChannel()
+    await update_channel.assertQueue(UPDATE_QUEUE_NAME!)
+    await presence_channel.assertQueue(PRESENCE_QUEUE_NAME!)
+
+    update_channel.prefetch(20, true)
+    presence_channel.prefetch(20, true)
+
+    const updatesConsumer = update_channel.consume(UPDATE_QUEUE_NAME!, (msg: ConsumeMessage | null) => {
+        if (!msg) {
+            return
+        }
+
+        //BROADCAST MESSAGE
+        const opmessage: OpMessage = JSON.parse(msg.content.toString())
+
+        clients[opmessage.id]?.queueUpdate(toUint8Array(opmessage.payload))
+    }, { noAck: true })
+
+    const presenceConsumer = presence_channel.consume(PRESENCE_QUEUE_NAME!, (msg: ConsumeMessage | null) => {
+        if (!msg) {
+            return
+        }
+
+        //BROADCAST MESSAGE
+        const presencemessage: PresenceMessage = JSON.parse(msg.content.toString())
+        const cl = clients[presencemessage.id]?.getClient(presencemessage.session_id)
+        if (cl) {
+            cl.setCursor(presencemessage.cursor.index, presencemessage.cursor.length)
+            clients[presencemessage.id].queuePresence(cl)
+        } else {
+            console.error(`Client (${presencemessage.id}) does not exist`)
+        }
+    }, { noAck: true })
+
+    await Promise.all([updatesConsumer, presenceConsumer])
 })
