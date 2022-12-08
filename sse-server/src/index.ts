@@ -105,7 +105,7 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
     const client_id = req.sessionID;
 
     const log = console.log
-    console.log = (value: string) => console.debug(`(${client_id}): ${value}`)
+    console.log = (value: string) => log(`(${client_id}): ${value}`)
 
     console.log(`Connecting`)
 
@@ -120,7 +120,8 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
         'Content-Type': 'text/event-stream',
         'Connection': 'keep-alive',
         'Cache-Control': 'no-cache',
-        "X-Accel-Buffering": "no"
+        "X-Accel-Buffering": "no",
+        "Access-Control-Allow-Origin": "*"
     };
 
     res.writeHead(200, headers);
