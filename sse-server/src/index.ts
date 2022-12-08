@@ -94,7 +94,7 @@ const doesDocumentExist = async (id: string) => {
 app.get('/api/connect/:id', async (req: Request, res: Response) => {
     const { id } = req.params
 
-    const { email, password } = req.session as any;
+    const { email, password, name } = req.session as any;
 
     //simple auth check
     if (!email || !password) {
@@ -104,9 +104,14 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 
     const client_id = req.sessionID;
 
-    console.log(`${client_id}: Connecting`)
+    const log = console.log
+    console.log = (value: string) => log(`(${client_id}): ${value}`)
 
-    if (!await doesDocumentExist(id)) {
+    console.log(`Connecting`)
+
+    const doesDocExist = await doesDocumentExist(id)
+
+    if (!doesDocExist) {
         console.log("Document doesnt exist")
         return res.json({ error: true, message: "Document does not exist" })
     }
@@ -117,8 +122,12 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
         'Cache-Control': 'no-cache',
         "X-Accel-Buffering": "no"
     };
-    res.set(headers)
-    res.flushHeaders();
+
+    res.writeHead(200, headers);
+
+    if (!name) {
+        console.log("NO NAME FOUND")
+    }
 
     if (!clients[id]) {
         clients[id] = new ClientManager(id)
@@ -132,7 +141,11 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 
     await Promise.all([clients[id].sendTo(client_id, fromUint8Array(update), EventType.Sync), clients[id].receivePresence(client_id)])
 
+    console.log("MESSAGES SENT")
+
+
     res.on("close", () => {
+        console.log("CLOSED")
         clients[id].removeClient(client_id)
     })
 })
