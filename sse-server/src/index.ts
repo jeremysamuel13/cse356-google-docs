@@ -116,24 +116,30 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
         return res.json({ error: true, message: "Document does not exist" })
     }
 
-    const headers = {
-        'Content-Type': 'text/event-stream',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache',
-        "X-Accel-Buffering": "no"
-    };
-
-    res.writeHead(200, headers);
-
-    if (!name) {
-        console.log("NO NAME FOUND")
-    }
-
     if (!clients[id]) {
         clients[id] = new ClientManager(id)
     }
 
-    clients[id].addClient(res, client_id, req.session.name!)
+    const existing = clients[id].getClient(client_id)
+
+    if (!existing) {
+        const headers = {
+            'Content-Type': 'text/event-stream',
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache',
+            "X-Accel-Buffering": "no"
+        };
+
+        res.writeHead(200, headers);
+
+        if (!name) {
+            console.log("NO NAME FOUND")
+        }
+
+        clients[id].addClient(res, client_id, req.session.name!)
+    } else {
+        res = existing.res
+    }
 
     // find document or create it
     const doc: Y.Doc = await ymongo.getYDoc(id)
