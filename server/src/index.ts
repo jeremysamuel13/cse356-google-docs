@@ -29,8 +29,7 @@ console.log(mongostr)
 
 //MONGO + YJS
 export const ymongo = new MongodbPersistence(mongostr, {
-    collectionName: COLLECTION,
-    flushSize: 25
+    collectionName: COLLECTION
 });
 
 mongoConnect(mongostr, (val) => console.log(val ?? "connected to docs db"));
@@ -117,7 +116,8 @@ app.use(session({
     saveUninitialized: false,
     secret: "secret",
     store: MongoStore.create({
-        mongoUrl: mongostr
+        mongoUrl: mongostr,
+        ttl: 60 * 60 // = 1hr
     })
 }))
 

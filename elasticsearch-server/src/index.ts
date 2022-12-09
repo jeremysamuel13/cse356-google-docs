@@ -27,8 +27,7 @@ const elastic_client = new ElasticClient({
 const mongostr = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB}?authSource=admin`
 
 export const ymongo = new MongodbPersistence(mongostr, {
-    collectionName: COLLECTION,
-    flushSize: 25
+    collectionName: COLLECTION
 });
 
 let needs_refresh = false
