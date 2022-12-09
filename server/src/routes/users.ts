@@ -3,6 +3,13 @@ import { Account } from '../db/userSchema'
 import { v4 as uuidv4 } from 'uuid'
 import { putUser } from '../db/userManagement'
 import { mail_amqp_channel, MAIL_QUEUE_NAME } from '..'
+import { createTransport } from 'nodemailer'
+
+export const transport = createTransport({
+    sendmail: true,
+    path: '/usr/sbin/sendmail',
+    newline: 'unix'
+})
 
 const router = Router()
 
@@ -39,14 +46,21 @@ const signup = async (req: Request<SignUpPayload>, res: Response) => {
 
     const verificationLink = `http://jeremymahir.cse356.compas.cs.stonybrook.edu/users/verify?email=${encodeURIComponent(email)}&key=${verificationKey}`
 
-    const message =
-    {
+    // const message =
+    // {
+    //     to: email,
+    //     subject: 'Verify account for CSE 356 website',
+    //     text: verificationLink
+    // }
+
+    // mail_amqp_channel.sendToQueue(MAIL_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
+
+    await transport.sendMail({
+        from: 'root@jeremymahir.cse356.compas.cs.stonybrook.edu',
         to: email,
         subject: 'Verify account for CSE 356 website',
         text: verificationLink
-    }
-
-    mail_amqp_channel.sendToQueue(MAIL_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
+    })
 
     return res.json({ error: false })
 }
