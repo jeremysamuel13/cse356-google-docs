@@ -38,12 +38,9 @@ app.use(morgan("dev"))
 app.use(session({
     resave: false,
     saveUninitialized: false,
-    secret: SECRET_KEY!,
+    secret: "secret",
     store: MongoStore.create({
-        mongoUrl: mongostr,
-        autoRemove: 'interval',
-        autoRemoveInterval: 1,
-        ttl: 60 * 60 // = 1hr
+        mongoUrl: mongostr
     })
 }))
 
