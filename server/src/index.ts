@@ -87,6 +87,29 @@ app.use(morgan("dev"))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }));
 
+app.use((req, res, next) => {
+    const ref = res.send;
+
+    res.send = function (val?) {
+        try {
+            const content = JSON.parse(val);
+
+            if (content.error) {
+                res.setHeader("X-API-ERROR", "true");
+                res.setHeader("X-API-ERROR-DESCRIPTION", content.description);
+            } else {
+                res.setHeader("X-API-ERROR", "false");
+            }
+        } catch {
+            console.error("ERROR SETTING ERROR HEADERS");
+        }
+
+        return ref.call(this, val);
+    };
+
+    next();
+});
+
 
 //Cookie-based sessions
 app.use(session({
@@ -112,6 +135,8 @@ app.use('/index', index);
 app.get('/health', (req, res) => {
     res.status(200).send('Ok');
 });
+
+app.use()
 
 // app.get('/server/logs', async (req, res) => {
 //     const allFileContents = fs.readFileSync('./access.log', 'utf-8');
