@@ -136,8 +136,6 @@ app.get('/health', (req, res) => {
     res.status(200).send('Ok');
 });
 
-app.use()
-
 // app.get('/server/logs', async (req, res) => {
 //     const allFileContents = fs.readFileSync('./access.log', 'utf-8');
 
