@@ -9,6 +9,7 @@ import { fromUint8Array, toUint8Array } from 'js-base64'
 import { default as MongoStore } from 'connect-mongo'
 import session from 'express-session'
 import morgan from 'morgan'
+import { v4 as uuidv4 } from 'uuid'
 
 declare module 'express-session' {
     interface SessionData {
@@ -51,6 +52,8 @@ const doesDocumentExist = async (id: string) => {
 }
 
 app.get('/api/connect/:id', async (req: Request, res: Response) => {
+    const connid = uuidv4()
+
     const { id } = req.params
 
     const { email, password, name } = req.session as any;
@@ -63,7 +66,7 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 
     const client_id = req.sessionID;
 
-    const log = (value: string) => console.log(`(${client_id}): ${value}`)
+    const log = (value: string) => console.log(`(${connid} ${client_id}): ${value}`)
 
 
     //simple auth check
