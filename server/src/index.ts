@@ -96,7 +96,7 @@ app.use((req, res, next) => {
 
             if (content.error) {
                 res.setHeader("X-API-ERROR", "true");
-                res.setHeader("X-API-ERROR-DESCRIPTION", content.description);
+                res.setHeader("X-API-ERROR-DESCRIPTION", content.message);
             } else {
                 res.setHeader("X-API-ERROR", "false");
             }
