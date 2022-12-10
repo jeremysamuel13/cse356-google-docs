@@ -26,10 +26,12 @@ export const op = async (req: Request<Event>, res: Response) => {
         payload: req.body.data
     }
 
+    res.json({ error: false })
+
     sse_amqp_channel.sendToQueue(SSE_UPDATE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
     updateDocument(id)
 
-    return res.json({ error: false })
+    return
 }
 
 export const presence = async (req: Request, res: Response) => {

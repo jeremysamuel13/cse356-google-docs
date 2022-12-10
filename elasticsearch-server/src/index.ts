@@ -54,7 +54,12 @@ const flushQueue = async () => {
 
     needs_refresh = false
 
-    const operations = (await Promise.all(values.map(async id => [{ update: { _id: id } }, { doc: (await ymongo.getYDoc(id) as Doc).getText().toJSON() }]))).flat()
+    const operations = (await Promise.all(values.map(async id => {
+        const ydoc = await ymongo.getYDoc(id) as Doc
+        const contents = ydoc.getText().toJSON()
+
+        return [{ update: { _id: id } }, { doc: { contents } }]
+    }))).flat()
 
     if (operations.length > 0) {
         await elastic_client.bulk<ElasticDoc, UpdateElasticDoc>({

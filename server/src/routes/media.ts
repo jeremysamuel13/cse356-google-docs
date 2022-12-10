@@ -66,8 +66,6 @@ export const access = async (req: Request, res: Response) => {
         return res.json({ error: true, message: "File not found" })
     }
 
-
-
     try {
         const { Body } = await s3.send(new GetObjectCommand({
             Bucket: "images",
