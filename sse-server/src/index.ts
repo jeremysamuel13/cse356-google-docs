@@ -49,7 +49,6 @@ app.use(session({
 
 const doesDocumentExist = async (id: string) => {
     const docs: Array<string> = await ymongo.getAllDocNames()
-    console.log(`${id} in ${docs}`)
     return docs.includes(id)
 }
 
@@ -115,16 +114,6 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 
     res.on("close", () => {
         log("CLOSED")
-        clients[id].removeClient(client_id)
-    })
-
-    res.on("finish", () => {
-        log("FINISHED")
-        clients[id].removeClient(client_id)
-    })
-
-    res.on("error", (err) => {
-        log(`ERROR: ${err}`)
         clients[id].removeClient(client_id)
     })
 })
