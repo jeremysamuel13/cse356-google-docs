@@ -9,15 +9,15 @@ const router = Router()
 export const op = async (req: Request<Event>, res: Response) => {
     // we expect a json body
     if (!req.is('application/json')) {
-        console.log({ headers: req.headers, body: req.body })
-        console.log("Not json")
+        //console.log({ headers: req.headers, body: req.body })
+        //console.log("Not json")
         return res.json({ error: true, message: "Not json" })
     }
 
     const { id } = req.params as any
 
     if (!id) {
-        console.log("Missing ID")
+        //console.log("Missing ID")
         return res.json({ error: true, message: "Missing id" })
     }
 
@@ -36,7 +36,7 @@ export const op = async (req: Request<Event>, res: Response) => {
 
 export const presence = async (req: Request, res: Response) => {
     if (!req.is('application/json')) {
-        console.log("Not json")
+        //console.log("Not json")
         return res.json({ error: true, message: "Not json" })
     }
 

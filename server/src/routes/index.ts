@@ -44,7 +44,7 @@ export const search = async (req: Request, res: Response) => {
         }
     })
 
-    // console.log({ q, mapped, type: "SEARCH" })
+    // //console.log({ q, mapped, type: "SEARCH" })
 
     return res.json(mapped)
 }

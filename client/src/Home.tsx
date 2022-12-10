@@ -18,7 +18,7 @@ const Home = () => {
 
   const fetchData = async () => {
     const data = await axios.get('/collection/list')
-    console.log(data)
+    //console.log(data)
     if (data.data.error) {
       navigate("/login")
     } else {

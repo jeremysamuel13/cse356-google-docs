@@ -75,7 +75,7 @@ export const access = async (req: Request, res: Response) => {
         res.writeHead(200, { "Content-Type": file.mimetype });
         return res.end(await Body?.transformToByteArray())
     } catch (e) {
-        console.error(e)
+        //console.error(e)
         return res.json({ error: true, message: "File not found" })
     }
 }

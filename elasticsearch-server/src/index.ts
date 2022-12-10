@@ -12,7 +12,7 @@ const { AMQP_URL, QUEUE_NAME, ELASTICSEARCH_ENDPOINT, ELASTICSEARCH_USER, ELASTI
 export const { PORT, COLLECTION, DB, DB_USER, DB_PASS, DB_HOST, DB_PORT } = process.env;
 
 
-console.log(AMQP_URL)
+//console.log(AMQP_URL)
 const FLUSH_INTERVAL = 2250;
 const INDEX = 'cse356-m4';
 
@@ -49,7 +49,7 @@ const flushQueue = async () => {
     }
 
     const values = Array.from(updates.values())
-    console.log(`Updating: ${Array.from(updates.keys())}`)
+    //console.log(`Updating: ${Array.from(updates.keys())}`)
     updates.clear()
 
     needs_refresh = false
@@ -80,7 +80,7 @@ await channel.consume(QUEUE_NAME!, (msg: ConsumeMessage | null) => {
     //UPDATE ELASTICSEARCH INDEX
     const id = msg.content.toString()
 
-    console.log(`Got message from: ${id}`)
+    //console.log(`Got message from: ${id}`)
 
     updates.add(id)
 

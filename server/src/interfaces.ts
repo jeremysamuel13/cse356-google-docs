@@ -98,11 +98,11 @@ export type Cursor = {
 
 //     //emit presence to all other clients
 //     async emitPresence(c: Client) {
-//         //console.log(c)
-//         //console.log(c.session_id)
+//         ////console.log(c)
+//         ////console.log(c.session_id)
 //         const payload = { session_id: c.client_id, name: c.name, cursor: c.cursor }
 //         await this.sendToAll(JSON.stringify(payload), EventType.Presence)
-//         //console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
+//         ////console.log(`!!!!!!!!!!\nSent presence:\n${payload}\n!!!!!!!!!!`)
 //     }
 
 //     async receivePresence(client_id: string) {
