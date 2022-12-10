@@ -116,6 +116,11 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
         log("CLOSED")
         clients[id].removeClient(client_id, connid)
     })
+
+    res.on("finish", () => {
+        log("CLOSED")
+        clients[id].removeClient(client_id, connid)
+    })
 })
 
 app.listen(8000, async () => {

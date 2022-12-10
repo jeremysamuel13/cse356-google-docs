@@ -47,31 +47,24 @@ export type Cursor = {
 
 export class Client {
     client_id: string;
-    res: {
-        [key: string]: Response
-    };
+    res: Map<string, Response>;
     cursor: Cursor;
     name: string;
 
     constructor(res: Response, client_id: string, name: string, uuid: string) {
         this.client_id = client_id
-        this.res = { uuid: res }
+        this.res = new Map()
+        this.res.set(uuid, res)
         this.cursor = {}
         this.name = name;
     }
 
-    async send(data: string, event: EventType) {
-        await Promise.all(Object.values(this.res).map(res => {
-            return new Promise<void>((resolve, reject) => {
-                let str = `event: ${event}\ndata: ${data}\n id: ${this.client_id}\n\n`
-                res.write(str, (err) => {
-                    if (err) {
-                        console.error(err)
-                    }
-
-                    resolve()
-                })
-            })
+    send(data: string, event: EventType) {
+        Promise.all(Array.from(this.res.values()).map(res => {
+            let str = `event: ${event}\ndata: ${data}\n id: ${this.client_id}\n\n`
+            if (!res.writableEnded) {
+                res.write(str)
+            }
         }))
     }
 
@@ -133,7 +126,7 @@ export class ClientManager {
                 const update = mergeUpdates(u)
                 const encoded = fromUint8Array(update)
                 await ymongo.storeUpdate(this.doc_id, update)
-                await this.sendToAll(encoded, EventType.Update)
+                this.sendToAll(encoded, EventType.Update)
 
             }, FLUSH_UPDATE_INTERVAL)
         }
@@ -153,8 +146,8 @@ export class ClientManager {
     }
 
     //send to all clients
-    async sendToAll(data: string, event: EventType) {
-        await Promise.all(Array.from(this.clients.values()).map((c: Client) => c.send(data, event)))
+    sendToAll(data: string, event: EventType) {
+        Array.from(this.clients.values()).map((c: Client) => c.send(data, event))
     }
 
     //send to one client
@@ -197,18 +190,18 @@ export class ClientManager {
                 }
 
                 const clients = this.presence_queue.splice(0, this.presence_queue.length)
-                await Promise.all(clients.map(async id => {
+                clients.map(async id => {
                     const c = this.getClient(id)
                     if (c) {
                         const payload = { session_id: c.client_id, name: c.name, cursor: c.cursor }
-                        await this.sendToAll(JSON.stringify(payload), EventType.Presence)
+                        this.sendToAll(JSON.stringify(payload), EventType.Presence)
                     }
-                }))
+                })
             }, FLUSH_PRESENCE_INTERVAL)
         }
     }
 
-    async receivePresence(client_id: string) {
-        await Promise.all(this.getCursors().map(async (cursor) => await this.sendTo(client_id, JSON.stringify(cursor), EventType.Presence)))
+    receivePresence(client_id: string) {
+        this.getCursors().map((cursor) => this.sendTo(client_id, JSON.stringify(cursor), EventType.Presence))
     }
 }
