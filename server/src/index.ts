@@ -64,8 +64,6 @@ await mail_amqp_channel.assertQueue(MAIL_QUEUE_NAME!)
 // EXPRESS
 const app: Express = express();
 
-app.use(morgan("dev"))
-
 //logger
 // app.use(morgan((tokens, req, res) => {
 //     return JSON.stringify({
