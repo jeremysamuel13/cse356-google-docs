@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 
 import express, { Express } from 'express';
 import session from 'express-session'
-import morgan from 'morgan'
 
 import { connect as mongoConnect } from 'mongoose'
 
@@ -84,28 +83,28 @@ const app: Express = express();
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }));
 
-app.use((req, res, next) => {
-    const ref = res.send;
+// app.use((req, res, next) => {
+//     const ref = res.send;
 
-    res.send = function (val?) {
-        try {
-            const content = JSON.parse(val);
+//     res.send = function (val?) {
+//         try {
+//             const content = JSON.parse(val);
 
-            if (content.error) {
-                res.setHeader("X-API-ERROR", "true");
-                res.setHeader("X-API-ERROR-DESCRIPTION", content.message);
-            } else {
-                res.setHeader("X-API-ERROR", "false");
-            }
-        } catch {
-            console.error("ERROR SETTING ERROR HEADERS");
-        }
+//             if (content.error) {
+//                 res.setHeader("X-API-ERROR", "true");
+//                 res.setHeader("X-API-ERROR-DESCRIPTION", content.message);
+//             } else {
+//                 res.setHeader("X-API-ERROR", "false");
+//             }
+//         } catch {
+//             console.error("ERROR SETTING ERROR HEADERS");
+//         }
 
-        return ref.call(this, val);
-    };
+//         return ref.call(this, val);
+//     };
 
-    next();
-});
+//     next();
+// });
 
 
 //Cookie-based sessions

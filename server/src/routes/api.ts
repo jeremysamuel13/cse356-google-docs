@@ -52,9 +52,11 @@ export const presence = async (req: Request, res: Response) => {
         name: req.session.name
     }
 
+    res.json({ error: false })
+
     sse_amqp_channel.sendToQueue(SSE_PRESENCE_QUEUE_NAME!, Buffer.from(JSON.stringify(message)))
 
-    return res.json({ error: false })
+    return
 }
 
 router.use(authMiddleware)
