@@ -12,7 +12,6 @@ export const search = async (req: Request, res: Response) => {
         return res.json({ error: true, message: "Missing query param" })
     }
 
-    await elastic_client.indices.refresh()
     const search_results = await elastic_client.search<ElasticDoc>({
         index: INDEX,
         query: {
@@ -57,7 +56,6 @@ export const suggest = async (req: Request, res: Response) => {
         return res.json({ error: true, message: "Missing query param" })
     }
 
-    await elastic_client.indices.refresh()
     const search_results = await elastic_client.search<ElasticDoc>({
         index: INDEX,
         query: {
