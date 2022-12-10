@@ -66,10 +66,10 @@ export class Client {
                 let str = `event: ${event}\ndata: ${data}\n id: ${this.client_id}\n\n`
                 res.write(str, (err) => {
                     if (err) {
-                        return reject(err)
-                    } else {
-                        return resolve()
+                        console.error(err)
                     }
+
+                    resolve()
                 })
             })
         }))
