@@ -9,7 +9,9 @@ import { fromUint8Array, toUint8Array } from 'js-base64'
 import { default as MongoStore } from 'connect-mongo'
 import session from 'express-session'
 import morgan from 'morgan'
-import { v4 as uuidv4 } from 'uuid'
+import uuid from 'uuid'
+
+const { v4: uuidv4 } = uuid
 
 declare module 'express-session' {
     interface SessionData {
