@@ -101,7 +101,7 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
         clients[id] = new ClientManager(id)
     }
 
-    clients[id].addClient(res, client_id, req.session.name!)
+    clients[id].addClient(res, client_id, req.session.name!, connid)
 
     // find document or create it
     const doc: Y.Doc = await ymongo.getYDoc(id)
@@ -114,7 +114,7 @@ app.get('/api/connect/:id', async (req: Request, res: Response) => {
 
     res.on("close", () => {
         log("CLOSED")
-        clients[id].removeClient(client_id)
+        clients[id].removeClient(client_id, connid)
     })
 })
 

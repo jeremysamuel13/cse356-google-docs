@@ -47,28 +47,32 @@ export type Cursor = {
 
 export class Client {
     client_id: string;
-    res: Response;
+    res: {
+        [key: string]: Response
+    };
     cursor: Cursor;
     name: string;
 
-    constructor(res: Response, client_id: string, name: string) {
+    constructor(res: Response, client_id: string, name: string, uuid: string) {
         this.client_id = client_id
-        this.res = res
+        this.res = { uuid: res }
         this.cursor = {}
         this.name = name;
     }
 
-    send(data: string, event: EventType) {
-        return new Promise<void>((resolve, reject) => {
-            let str = `event: ${event}\ndata: ${data}\n id: ${this.client_id}\n\n`
-            this.res.write(str, (err) => {
-                if (err) {
-                    return reject(err)
-                } else {
-                    return resolve()
-                }
+    async send(data: string, event: EventType) {
+        await Promise.all(Object.values(this.res).map(res => {
+            return new Promise<void>((resolve, reject) => {
+                let str = `event: ${event}\ndata: ${data}\n id: ${this.client_id}\n\n`
+                res.write(str, (err) => {
+                    if (err) {
+                        return reject(err)
+                    } else {
+                        return resolve()
+                    }
+                })
             })
-        })
+        }))
     }
 
     setCursor(index: number, length: number) {
@@ -77,6 +81,18 @@ export class Client {
 
     clearCursor() {
         this.cursor = {}
+    }
+
+    push(res: Response, uuid: string) {
+        this.res[uuid] = res
+    }
+
+    remove(uuid: string) {
+        if (this.res[uuid]) {
+            delete this.res[uuid]
+        }
+
+        return Object.keys(this.res).length
     }
 }
 
@@ -124,8 +140,15 @@ export class ClientManager {
     }
 
     //add client to manager
-    addClient(res: Response, client_id: string, name: string) {
-        this.clients.set(client_id, new Client(res, client_id, name))
+    addClient(res: Response, client_id: string, name: string, uuid: string) {
+        const exists = this.clients.get(client_id)
+
+        if (exists) {
+            exists.push(res, uuid)
+        } else {
+            this.clients.set(client_id, new Client(res, client_id, name, uuid))
+        }
+
         return client_id
     }
 
@@ -140,9 +163,11 @@ export class ClientManager {
     }
 
     //remove client
-    removeClient(client_id: string) {
+    removeClient(client_id: string, uuid: string) {
         const client = this.clients.get(client_id)
-        if (client) {
+        const len = client?.remove(uuid)
+
+        if (client && len && len > 0) {
             client.clearCursor()
             this.clients.delete(client_id)
             this.queuePresence(client)
