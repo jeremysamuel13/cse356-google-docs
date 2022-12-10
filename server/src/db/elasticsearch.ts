@@ -19,13 +19,13 @@ type UpdateElasticDoc = Omit<ElasticDoc, "name">
 //     constructor() {
 //         this.queue = new Set()
 //         this.interval = null
-//         ////console.log("created queue")
+//         //console.log("created queue")
 //     }
 
 //     queueUpdate(id: string) {
 //         this.queue.add(id)
 //         this.startInterval()
-//         ////console.log(`Added to queue: ${id}`)
+//         //console.log(`Added to queue: ${id}`)
 //     }
 
 //     async flushQueue() {
@@ -45,7 +45,7 @@ type UpdateElasticDoc = Omit<ElasticDoc, "name">
 
 //     async getBulkReq(id: string) {
 //         const doc = await ymongo.getYDoc(id)
-//         ////console.log(`Flushed from queue: ${id}`)
+//         //console.log(`Flushed from queue: ${id}`)
 //         return {
 //             contents: doc.getText().toJSON()
 //         }
@@ -54,37 +54,37 @@ type UpdateElasticDoc = Omit<ElasticDoc, "name">
 //     startInterval() {
 //         if (!this.interval) {
 //             this.interval = setInterval(() => { this.flushQueue() }, FLUSH_INTERVAL)
-//             ////console.log("Interval started")
+//             //console.log("Interval started")
 //         }
 //     }
 
 //     stopInterval() {
 //         this.interval && clearInterval(this.interval)
 //         this.interval = null
-//         ////console.log("Interval stopped")
+//         //console.log("Interval stopped")
 //     }
 // }
 
 // export const elastic_queue = new ElasticQueue()
 
-////console.log("CREATED QUEUE")
-////console.log(elastic_queue)
+//console.log("CREATED QUEUE")
+//console.log(elastic_queue)
 
 export const deleteIndicies = async () => {
-    //console.log(`DELETING ELASTICSEARCH INDEX: ${INDEX}`)
+    console.log(`DELETING ELASTICSEARCH INDEX: ${INDEX}`)
     await elastic_client.indices.delete({ index: INDEX })
 }
 
 export const createIndicies = async (del: boolean) => {
     if (del) {
-        //console.log("DELETING INDICES")
+        console.log("DELETING INDICES")
         await deleteIndicies()
     }
 
     const exists = await elastic_client.indices.exists({ index: INDEX })
 
     if (!exists) {
-        //console.log(`Elasticsearch index (${INDEX}) does not exist, creating.`)
+        console.log(`Elasticsearch index (${INDEX}) does not exist, creating.`)
         return await elastic_client.indices.create({
             index: INDEX
         })

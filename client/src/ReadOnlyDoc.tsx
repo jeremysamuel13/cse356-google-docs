@@ -68,8 +68,8 @@ const ReadOnlyDoc = () => {
         const eventSource = new EventSource(`/api/connect/${id}`)
 
         const handleUpdate = (event: MessageEvent<any>) => {
-            //console.debug("UPDATE")
-            //console.debug(event)
+            console.debug("UPDATE")
+            console.debug(event)
             const data = JSON.parse(event.data)
             const update = toUint8Array(data.update)
             Y.applyUpdate(doc.current, update)
@@ -77,14 +77,14 @@ const ReadOnlyDoc = () => {
         }
 
         const handlePresence = (event: MessageEvent<any>) => {
-            //console.log("PRESENCE")
-            //console.debug(event)
+            console.log("PRESENCE")
+            console.debug(event)
             const { client_id, name, cursor } = JSON.parse(event.data)
             const editor = ref.getEditor()
-            //console.log({ editor, ref })
+            console.log({ editor, ref })
             const cursors = editor?.getModule("cursors")
-            //console.log("CURSORS FROM EDITOR")
-            //console.log(cursors)
+            console.log("CURSORS FROM EDITOR")
+            console.log(cursors)
             const randomColor = "#" + ((1 << 24) * Math.random() | 0).toString(16)
 
             cursors.createCursor(client_id, name, randomColor)
@@ -93,8 +93,8 @@ const ReadOnlyDoc = () => {
         }
 
         const handleSync = (event: MessageEvent<any>) => {
-            //console.debug("SYNC")
-            //console.debug(event)
+            console.debug("SYNC")
+            console.debug(event)
             const data = JSON.parse(event.data)
             const update = toUint8Array(data.update)
             setClientID(data.client_id)
@@ -104,7 +104,7 @@ const ReadOnlyDoc = () => {
             Y.applyUpdate(doc.current, update)
             const editor = ref.getEditor()
             binding.current = new QuillBinding(doc.current.getText(), editor)
-            //console.log("DONE WITH SYNC")
+            console.log("DONE WITH SYNC")
         }
 
         eventSource.addEventListener('update', handleUpdate)

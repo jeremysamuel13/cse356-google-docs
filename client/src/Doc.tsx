@@ -94,8 +94,8 @@ const Doc = () => {
         const eventSource = new EventSource(`/api/connect/${id}`)
 
         const handleUpdate = (event: MessageEvent<any>) => {
-            //console.debug("UPDATE")
-            //console.debug(event)
+            console.debug("UPDATE")
+            console.debug(event)
             doc.current._observers.delete('update')
             const update = toUint8Array(event.data)
             Y.applyUpdate(doc.current, update)
@@ -103,8 +103,8 @@ const Doc = () => {
         }
 
         const handlePresence = (event: MessageEvent<any>) => {
-            //console.log("PRESENCE")
-            //console.debug(event)
+            console.log("PRESENCE")
+            console.debug(event)
             const { session_id, name, cursor } = JSON.parse(event.data)
             const editor = ref.getEditor()
             const cursors = editor?.getModule("cursors")
@@ -118,8 +118,8 @@ const Doc = () => {
         const handleSync = (event: MessageEvent<any>) => {
             setConnected(true)
 
-            //console.debug("SYNC")
-            //console.debug(event)
+            console.debug("SYNC")
+            console.debug(event)
             const update = toUint8Array(event.data)
             doc.current._observers.delete('update')
             binding.current?.destroy()

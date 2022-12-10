@@ -36,7 +36,7 @@ const signup = async (req: Request<SignUpPayload>, res: Response) => {
     const dups = await Account.find({ $or: [{ email }, { name }] })
 
     if (dups && dups.length > 0) {
-        //console.log("User already created!")
+        console.log("User already created!")
         return res.json({ error: true, message: "User already created" })
     }
 
@@ -101,19 +101,19 @@ const login = async (req: Request<LoginPayload>, res: Response) => {
     const { email, password } = req.body
 
     if (!email || !password) {
-        //console.log(`Login: Name/pass not found`)
+        console.log(`Login: Name/pass not found`)
         return res.json({ error: true, message: "name/password not found", body: req.body })
     }
 
     const user = await Account.findOne({ email })
 
     if (!user) {
-        //console.log(`Login: user not found`)
+        console.log(`Login: user not found`)
         return res.json({ error: true, message: "User not found" })
     }
 
     if (!user.isVerified) {
-        //console.log(`Login: user is not verified`)
+        console.log(`Login: user is not verified`)
         return res.json({ error: true, message: "User not verified" })
     }
 
@@ -122,11 +122,11 @@ const login = async (req: Request<LoginPayload>, res: Response) => {
         req.session.password = password
         req.session.name = user.name
 
-        ////console.log(`Login: set session: ${req.sessionID}`)
+        //console.log(`Login: set session: ${req.sessionID}`)
 
         return res.json({ error: false, name: user.name })
     } else {
-        //console.log(`Login: wrong pass. Got ${password}, expected: ${user.password}`)
+        console.log(`Login: wrong pass. Got ${password}, expected: ${user.password}`)
         return res.json({ error: true, message: "Invalid password" })
     }
 }
@@ -136,7 +136,7 @@ const logout = (req: Request, res: Response) => {
         if (err) {
             throw err
         } else {
-            //console.log("Destroyed session")
+            console.log("Destroyed session")
             return res.redirect('/')
         }
     })
@@ -146,13 +146,13 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
     const { email, password } = req.session as any;
 
     if (!email || !password) {
-        //console.log(`Middleware (${req.sessionID}): No email/pass`)
+        console.log(`Middleware (${req.sessionID}): No email/pass`)
         return res.json({ error: true, message: "Email/password not supplied" });
     }
 
     // const acc = await Account.exists({ email, password });
     // if (!acc) {
-    //     //console.log(`Middleware (${req.sessionID}): User not found`)
+    //     console.log(`Middleware (${req.sessionID}): User not found`)
     //     return res.json({ error: true, message: "User not found" });
     // }
 
