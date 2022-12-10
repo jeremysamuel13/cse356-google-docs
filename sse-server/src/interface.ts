@@ -167,7 +167,7 @@ export class ClientManager {
         const client = this.clients.get(client_id)
         const len = client?.remove(uuid)
 
-        if (client && len && len > 0) {
+        if (client && len && len === 0) {
             client.clearCursor()
             this.clients.delete(client_id)
             this.queuePresence(client)
